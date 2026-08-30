@@ -23,10 +23,20 @@ def scatter(rows, xkey, ykey, xlabel, ylabel, title, out, logx=False, ymax=None)
         return
     xmin, xmax = min(xs), max(xs)
     if logx:
+        if xmax <= 0:
+            return
         xmin, xmax = math.log10(max(xmin, 1e-9)), math.log10(max(xmax, 1e-8))
+        if xmax - xmin < 1e-9:
+            # Singleton log domain would push points far off-canvas; pad
+            # one decade each side so the point stays visible and labeled.
+            xmin, xmax = xmin - 1.0, xmax + 1.0
     ymin, ymax = 0, ymax or max(ys) * 1.1
     def px(v):
-        return M + (logx and (math.log10(max(v,1e-9))-xmin) or (v-xmin)) / max(xmax-xmin, 1e-12) * (W-M-30)
+        if logx:
+            t = (math.log10(max(v, 1e-9)) - xmin) / max(xmax - xmin, 1e-12)
+        else:
+            t = (v - xmin) / max(xmax - xmin, 1e-12)
+        return M + t * (W-M-30)
     def py(v):
         return H-M - v / max(ymax-ymin, 1e-12) * (H-M-40) - 10
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" role="img" aria-label="{esc(title)}">',

@@ -7,7 +7,7 @@
   "canonical_model": "GLM-5.3-Flash",
   "platform": "CMP-170HX",
   "github_repo": "PixelML/GLM-5.3-Flash-CMP-170HX",
-  "github_revision": "pinned-at-publication",
+      "github_revision": "pinned-at-publication (frozen head recorded in the opening review-request comment)",
   "sources": [
     {
       "repo": "unsloth/GLM-5.3-Flash-GGUF",
@@ -54,13 +54,13 @@
       "note": "corrected pack results/phase63/quality-final2.jsonl committed (26 tasks, 21 passed); two harness defects fixed during phase, remaining misses are model-output behavior"
     },
     "thermals": {
-      "core_c": "40-43",
-      "memory_c": "45-56",
-      "power_w": "40-70",
-      "throttle_events": 0
+      "core_c": "43 (final snapshot per card: 43/41/43/41)",
+      "memory_c": "55 max (final snapshot per card: 45/54/55/53)",
+      "power_w": "final snapshot per card: 40.10/44.49/40.64/41.82",
+      "telemetry": "end-of-run snapshot only; no continuous per-request thermal/power log was kept this phase"
     },
-    "energy_cost_note": "GPU-only lower bound; hypothetical price band disclosed in charts; no purchase data",
-    "uncertainty_note": "single-run small-sample gate; medians reported, no significance claims"
+    "energy_cost_note": "energy_wh is a snapshot-based estimate (one final power reading x protocol duration), NOT integrated task energy; GPU-only lower bound; hypothetical price band disclosed in charts; no purchase data",
+    "uncertainty_note": "single-run small-sample gate; medians reported, no significance claims; streaming TTFT/ITL fields were harness artifacts this phase (0.0/null) and are published as not captured"
   },
   "notes": "Third-party weights are tested in place, not mirrored; the upstream GGUF is added to the PixelML verified Collection at publication time. Phase-C evaluation metadata above resolves to redacted artifacts at github_revision. publication_status moves to candidate only after review approval at the frozen revision."
 }

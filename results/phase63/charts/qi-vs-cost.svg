@@ -10,8 +10,8 @@
 <line x1="70" y1="410" x2="700" y2="410" stroke="#333"/>
 <text x="360.0" y="462" font-size="13" text-anchor="middle">GPU-energy cost per successful task (USD, low band) (log)</text>
 <text x="16" y="240.0" font-size="13" transform="rotate(-90 16 240.0)" text-anchor="middle">Quality Index</text>
-<circle cx="2726747605376733.5" cy="63.6" r="5" fill="#D55E00" fill-opacity="0.85"><title>phase63-c1-baseline;ts=1;1;1;1;th=8;par=1;ctx=16384;fa=auto;ctk=default;ctv=default;b=2048;ub=512;mmap=yes: 4e-05 / 0.7833</title></circle>
-<text x="2726747605376733.5" y="53.6" font-size="9" text-anchor="middle" fill="#333">1</text>
+<circle cx="380.0" cy="63.6" r="5" fill="#D55E00" fill-opacity="0.85"><title>phase63-c1-baseline;ts=1;1;1;1;th=8;par=1;ctx=16384;fa=auto;ctk=default;ctv=default;b=2048;ub=512;mmap=yes: 4e-05 / 0.7833</title></circle>
+<text x="380.0" y="53.6" font-size="9" text-anchor="middle" fill="#333">1</text>
 <text x="696" y="24" font-size="12" text-anchor="end" fill="#D55E00">Pareto frontier</text>
 <circle cx="706" cy="20" r="4" fill="#D55E00"/>
 </svg>

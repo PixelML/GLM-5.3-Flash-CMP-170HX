@@ -72,15 +72,16 @@ independently re-measured.
 - Fork branch head: `00699716c275498ff84d71e329178fe21cba56a6` (local clone verified)
 - CUDA sm_80 compile: local build log (on the benchmark node, not committed)
 
-## Re-run instructions
+## Re-run instructions (validated procedure, phase C)
 
-Once measured results land, this section will contain the exact pinned
-`llama-server` command, environment variables, and stop conditions used for
-the benchmark. Draft:
+This is the exact procedure used for the measured phase-C baseline. The
+one-command entry point is `bench/rebench.sh`, which wraps every step below
+with preflight, a continuous thermal/Xid guard, and a fresh run directory:
 
 1. Build the pinned fork with `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=80`.
 2. Stage the 5 GGUF shards in shared model storage (path not published here).
 3. Launch `llama-server` with `--split-mode layer --tensor-split <free-VRAM-derived>`,
    `--ctx-size 16384` initially, `--n-gpu-layers 999`.
-4. Abort at 80 °C core / 85 °C memory / any Xid / GPU disappearance.
+4. Abort at 80 °C core / 85 °C memory / any Xid / GPU disappearance (the
+   guard enforces this continuously and kills the owned process group).
 - all 5 shards sha256-verified OK vs the pinned upstream manifest (2026-08-30); see results/expected-sha256.txt for the pinned hashes.
