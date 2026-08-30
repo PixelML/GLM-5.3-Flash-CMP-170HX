@@ -91,7 +91,7 @@ def _json_color_count(t):
 
 
 INSTR_TASKS = [
-    ("Write exactly 3 sentences about the ocean. Separate them with newlines.", lambda t: len([l for l in t.strip().split("\n") if l.strip()]) == 3),
+    ("Write exactly 3 sentences about the ocean. Separate them with newlines.", lambda t: len([line for line in t.strip().split("\n") if line.strip()]) == 3),
     ("List exactly 5 prime numbers below 20, one per line, nothing else.", lambda t: (nums := re.findall(r"\d+", t)) and len(nums) == 5 and all(int(n) in {2,3,5,7,11,13,17,19} for n in nums)),
     ("Reply with only the word YES if 7 is prime, or NO otherwise.", lambda t: t.strip().upper() == "YES"),
     ("Produce a JSON object with exactly two keys: 'color' (string) and 'count' (integer). Do not add any other keys or text.", _json_color_count),
@@ -191,7 +191,7 @@ def _run_coding_task(model_output, harness_code):
         with open(test, "w") as f:
             f.write(harness_code)
         try:
-            r = subprocess.run([sandbox, test], cwd=td,
+            r = subprocess.run([sandbox, test, sol], cwd=td,
                                capture_output=True, text=True, timeout=25,
                                check=False)
             return (r.returncode == 0 and "PASS" in r.stdout,
@@ -225,7 +225,7 @@ HELDOUT_MATH = [
 ]
 
 HELDOUT_INSTR = [
-    ("Write exactly 2 sentences about rivers. Separate them with newlines.", lambda t: len([l for l in t.strip().split("\n") if l.strip()]) == 2),
+    ("Write exactly 2 sentences about rivers. Separate them with newlines.", lambda t: len([line for line in t.strip().split("\n") if line.strip()]) == 2),
     ("Reply with only the word NO if 9 is prime, or YES otherwise.", lambda t: t.strip().upper() == "NO"),
 ]
 

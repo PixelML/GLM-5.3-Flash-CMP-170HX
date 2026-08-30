@@ -17,11 +17,19 @@ mount --bind /lib /mnt/lib
 mount --bind /lib64 /mnt/lib64
 for d in usr bin lib lib64; do mount -o remount,ro,bind "/mnt/$d"; done
 mount -t tmpfs -o size=64m,mode=1777 tmpfs /mnt/tmp
-cp "$1" /mnt/tmp/untrusted.py
+ cp "$1" /mnt/tmp/harness.py
+ # The harness imports the candidate as "solution"; place it beside the
+ # harness so "from solution import ..." resolves inside the chroot.
+ SOLUTION="${2:-}"
+ if [ -n "$SOLUTION" ]; then
+   cp "$SOLUTION" /mnt/tmp/solution.py
+ else
+   : > /mnt/tmp/solution.py
+ fi
 exec chroot /mnt /bin/sh -c "
   cd /tmp
   ulimit -t 20
   ulimit -v 524288
-  exec python3 -I -B /tmp/untrusted.py
+ exec python3 -I -B /tmp/harness.py
 "
 ' runner "$FILE"
