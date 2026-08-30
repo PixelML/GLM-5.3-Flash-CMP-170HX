@@ -55,13 +55,18 @@ The two blockers that killed every early attempt are resolved on paper as of
 
 **Measured validation (Phase C, 2026-08-30, four-card node):** the GGUF pairing
 served successfully. The UD-IQ4_XS GGUF on the sm_80 llama.cpp fork reached
-17.73 tok/s median single-stream (5 reps), 17.71 tok/s aggregate at concurrency
-4, with a 41-repetition soak completing cleanly. The 26-task evaluation scored
-16/26 overall (math 8/8, instruction 4/5, coding 0/3, long-context 0/3) and
-4/7 held out. Full receipt, per-request data, charts, and rebench entry:
-[results/summary.json](results/summary.json),
+17.73 tok/s median single-stream (5 reps), 17.73 tok/s aggregate at concurrency
+4, with a 41-repetition soak completing cleanly. The corrected 26-task
+evaluation scored 21/26 overall — math 8/8, instruction 4/5, long-context 3/3
+on the tuning set, plus 4/4 held-out math and 1/1 held-out code — after two
+harness defects were found and fixed during the phase (a coding sandbox that
+dropped the candidate module, and completion budgets that starved reasoning
+output before any answer bytes). The two remaining coding misses and two
+held-out instruction misses are recorded as model-output behavior, not
+harness artifacts. Full receipt, per-request data, charts, and rebench entry:
 [results/summary.csv](results/summary.csv),
-[results/charts/](results/charts/),
+[results/phase63/README.md](results/phase63/README.md),
+[results/phase63/charts/](results/phase63/charts/),
 [bench/rebench.sh](bench/rebench.sh). The EXL3/TR3, AWQ, NVFP4, and FP8/BF16
 rows above remain blocked as recorded; all failed attempts stay in this
 repository as history.
