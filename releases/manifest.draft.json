@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "publication_status": "draft",
+  "release_kind": "recipe",
+  "relationship": "third-party-verified",
+  "title": "GLM-5.3-Flash GGUF UD-IQ4_XS on CMP 170HX (llama.cpp DSA fork)",
+  "canonical_model": "GLM-5.3-Flash",
+  "platform": "CMP-170HX",
+  "github_repo": "PixelML/GLM-5.3-Flash-CMP-170HX",
+  "github_revision": "397ae87",
+  "sources": [
+    {
+      "repo": "unsloth/GLM-5.3-Flash-GGUF",
+      "revision": "2975ab414d30340466d8c51533c6e91f0cca64c1",
+      "license": "MIT"
+    },
+    {
+      "repo": "unslothai/llama.cpp",
+      "revision": "00699716c275498ff84d71e329178fe21cba56a6",
+      "license": "MIT"
+    }
+  ],
+  "huggingface_artifacts": [],
+  "notes": "Draft, no-claim-ready. Third-party weights are tested in place, not mirrored; the upstream GGUF is added to the PixelML verified Collection at publication time. This manifest gains evaluation metadata and measured claims only after the CMP smoke and benchmark runs complete; publication_status moves to candidate only with redacted evidence attached."
+}
