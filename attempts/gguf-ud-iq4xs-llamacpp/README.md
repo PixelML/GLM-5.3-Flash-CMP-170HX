@@ -89,3 +89,4 @@ the benchmark. Draft:
 3. Launch `llama-server` with `--split-mode layer --tensor-split <free-VRAM-derived>`,
    `--ctx-size 16384` initially, `--n-gpu-layers 999`.
 4. Abort at 80 °C core / 85 °C memory / any Xid / GPU disappearance.
+- shard 1 sha256 verified OK vs upstream LFS oid (read-only check, 2026-08-30); shards 3-5 verifiable only after staging completes; see results/expected-sha256.txt for the pinned hashes.
