@@ -52,7 +52,8 @@ First measured baseline (phase C, 2026-08-30; 400-token prompt /
 gate, medians reported): 17.73 tok/s aggregate decode,
 14.44 s end-to-end per task. Aggregate throughput is ~flat across the
 1/2/4 concurrency ladder (compute-bound); a 20-minute soak at c=2 held
-17.5-17.7 tok/s with no throttling.
+17.5-17.7 tok/s. Throttling was not continuously logged this phase, so
+no zero-throttle claim is made; see the run manifest's not-recorded entries.
 
 Corrected quality index 0.783 (mean bucket rate over math, instruction,
 coding, long-context; small-sample gate, not a leaderboard; below the 90%
@@ -63,10 +64,10 @@ starved reasoning models before any answer bytes were produced. Raw JSONL,
 the corrected pack, and the defect log are in results/phase63/ (README.md
 inside documents the defects and the corrected per-bucket scores).
 
-Charts (quality-vs-cost with GPU-only energy lower bound and disclosed
-hypothetical price band, quality-vs-time, quality-vs-throughput,
-concurrency-vs-throughput) are regenerated from results/summary.csv by
-bench/charts.py into results/phase63/charts/.
+Charts (quality-vs-cost with a GPU snapshot-power proxy — not integrated
+task energy — and a disclosed hypothetical price band; quality-vs-time;
+quality-vs-throughput; concurrency-vs-throughput) are regenerated from
+results/summary.csv by bench/charts.py into results/phase63/charts/.
 
 ## What failed (so far)
 

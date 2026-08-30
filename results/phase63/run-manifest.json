@@ -50,7 +50,7 @@
     "throttle_events": "not-recorded (no continuous throttle telemetry this phase; final snapshot only)",
     "xid_events": "not-recorded (thermal-guard Xid scan ran between phases with no detected events logged; continuous kernel-log capture not committed)",
     "telemetry_note": "single snapshot at end of run + bounded guard calls between stages; continuous watch telemetry for the soak is a known gap in this run and is enforced in bench/rebench.sh for future runs",
-    "thermal_breaches": 0
+    "thermal_breaches": "not-recorded (no continuous thermal-breach telemetry committed; guard checks ran between phases)"
   },
   "artifacts": {
     "warmups": "warmups.jsonl",
@@ -62,8 +62,9 @@
     "summary_csv": "../summary.csv",
     "charts_dir": "charts/"
   },
-  "harness_git_sha": "resolved-at-publication-freeze (recorded as the exact head in the opening review-request comment; self-referential pin inside the harness history is not possible)",
+  "harness_git_sha": "0a50f0f38c069559516bf66343e1083ec3ef6145",
   "gpu": {
     "power_limit_w": "as-configured (operator-set; unchanged this phase; exact per-card limit not queried)"
-  }
+  },
+  "harness_git_sha_note": "measured phase-C baseline ran on the bench/ tree at this revision; later PR commits touch harness/derivation code only and are pinned separately by the PR head in review"
 }

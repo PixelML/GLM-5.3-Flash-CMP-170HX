@@ -10,10 +10,14 @@ Quality Index (disclosed, local, NOT a universal score):
        (math, coding, instruction, longctx), each shown beside the composite.
   Sample sizes are small; treat QI as a smoke gate, not a ranking oracle.
 
-Cost model (disclosed):
-  - energy_gpu_wh = sum(power_w) * t_task_s / 3600 per successful task,
-    GPU-only LOWER BOUND (idle host, fans, networking excluded).
-  - cost_usd_band = energy_kwh * [price_low, price_high] with defaults
+Energy/cost PROXY (disclosed, not integrated energy):
+  - energy_gpu_wh = sum(final-snapshot power_w) * t_task_s / 3600.
+    This is a SNAPSHOT POWER PROXY: one end-of-run power reading multiplied
+    by the speed-protocol duration, then scaled by the tuning-eval pass
+    rate. It is NOT integrated task energy and NOT measured cost of the
+    evaluated tasks. Use only for rough cross-config comparison until
+    per-task energy capture exists.
+  - cost_usd_band = proxy_kwh * [price_low, price_high] with defaults
     0.05 / 0.30 USD/kWh (clearly hypothetical; no purchase data used).
   - failed/retried attempts increase the denominator via observed success rate.
 """
