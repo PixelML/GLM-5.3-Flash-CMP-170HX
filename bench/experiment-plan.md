@@ -20,9 +20,9 @@ config is declared final.
 
 | # | Factor | Variants | Rationale / prior expectation |
 |---|--------|----------|-------------------------------|
-| 0 | Baseline | serve.sh defaults: mmap, layer split, tensor-split 1,1,1 (equal ratios, documented default), threads 8, ctx 16384, parallel 1, flash-attn per binary default (read from server startup log — record it) | reference point; also fixes the exact prompt-token count from the first usage object (prompt-1k.txt is ~1K tokens by construction, untokenized — do not claim an exact count) |
+| 0 | Baseline | serve.sh defaults: mmap, layer split, tensor-split 1,1,1,1 (equal ratios across four GPUs, documented default), threads 8, ctx 16384, parallel 1, flash-attn per binary default (read from server startup log — record it) | reference point; also fixes the exact prompt-token count from the first usage object (prompt-1k.txt is ~1K tokens by construction, untokenized — do not claim an exact count) |
 | 1 | --split-mode | row vs layer | MoE decode is weight-bandwidth-bound; row (tensor) split reads each weight once across cards instead of keeping whole layers per card. Community-reported as often faster for MoE when per-layer weights exceed per-card bandwidth benefit; label community-reported until measured here |
-| 2 | --tensor-split | 1,1,1 (default) vs proportional-to-free-VRAM | cards are identical 64 GiB SKUs, so equal ratios are expected near-optimal; cheap A/B |
+| 2 | --tensor-split | 1,1,1,1 (default) vs proportional-to-free-VRAM | cards are identical 64 GiB SKUs, so equal ratios are expected near-optimal; cheap A/B |
 | 3 | --flash-attn | on vs off | affects KV-path FLOPs and, for some quantized KV types, is required; decode effect expected small at 16K ctx but measure |
 | 4 | --cache-type-k / -v | f16 vs q8_0 (then q4_0) | KV is small for this MLA-style architecture (est. 2–4 GiB at 16K, untested); expect minor effect. If the fork rejects quantized KV for this arch, record as untested with the server's error text |
 | 5 | --threads | 4, 8, 12, 16 | decode is GPU-bound with all layers offloaded; expect flat. Cheap sweep |

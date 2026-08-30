@@ -24,20 +24,20 @@ lands here after the run.
 
 ## Run it (candidate baseline, unverified)
 
-\`\`\`bash
+```bash
 git clone https://github.com/PixelML/GLM-5.3-Flash-CMP-170HX
 cd GLM-5.3-Flash-CMP-170HX/bench
-NAME=baseline LLAMA_SERVER=<built llama-server> MODEL_DIR=<staged shards> ./run-experiment.sh
-\`\`\`
+NAME=baseline LLAMA_SERVER=/path/to/llama-server MODEL_DIR=/path/to/staged-shards ./run-experiment.sh
+```
 
-Expected ready signal: \`ok: 5/5 shards staged\` then \`preflight: PASS\`, then
-\`healthy after ~Ns\` in the runner log.
+Expected ready signal: `ok: 5/5 shards staged` then `preflight: PASS`, then
+`healthy after ~Ns` in the runner log.
 
 ## Why these settings
 
-Explained in [bench/experiment-plan.md](../../bench/experiment-plan.md)
+Explained in [bench/experiment-plan.md](../bench/experiment-plan.md)
 (factor order and rationale) and
-[attempts/gguf-ud-iq4xs-llamacpp/README.md](../../attempts/gguf-ud-iq4xs-llamacpp/README.md)
+[attempts/gguf-ud-iq4xs-llamacpp/README.md](../attempts/gguf-ud-iq4xs-llamacpp/README.md)
 (static fit, mmap arithmetic).
 Flags are added one at a time; nothing above is asserted to be optimal.
 
@@ -51,17 +51,17 @@ Pareto frontier — all regenerated from results/summary.csv by bench/charts.py.
 ## What failed (so far)
 
 Five earlier attempts are recorded with evidence:
-[NVFP4+vLLM](../../attempts/nvfp4-vllm-sm121/README.md) (no SM80 runtime),
-[EXL3/TR3 4bpw](../../attempts/exl3-tr3-4bpw-exllamav3/README.md) (no SM80 ExLlamaV3),
-[AWQ-INT4](../../attempts/awq-int4-vllm/README.md) (does not fit),
-[FP8/BF16](../../attempts/fp8-bf16-reference/README.md) (does not fit),
-and [EXL3 3.0bpw](../../attempts/exl3-3bpw-0xsero/README.md) (quantization
+[NVFP4+vLLM](../attempts/nvfp4-vllm-sm121/README.md) (no SM80 runtime),
+[EXL3/TR3 4bpw](../attempts/exl3-tr3-4bpw-exllamav3/README.md) (no SM80 ExLlamaV3),
+[AWQ-INT4](../attempts/awq-int4-vllm/README.md) (does not fit),
+[FP8/BF16](../attempts/fp8-bf16-reference/README.md) (does not fit),
+and [EXL3 3.0bpw](../attempts/exl3-3bpw-0xsero/README.md) (quantization
 artifact with no serving runtime). These shaped the current candidate.
 
 ## Reproduce the evaluation
 
-Pins to link at publication: model revision \`2975ab414d30340466d8c51533c6e91f0cca64c1\`,
-runtime \`00699716c275498ff84d71e329178fe21cba56a6\`, harness = this repo\'s bench/
+Pins to link at publication: model revision `2975ab414d30340466d8c51533c6e91f0cca64c1`,
+runtime `00699716c275498ff84d71e329178fe21cba56a6`, harness = this repo\'s bench/
 at the published revision, redacted raw JSONL + tidy CSV + chart source in
 results/.
 
