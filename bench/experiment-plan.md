@@ -47,3 +47,18 @@ config is declared final.
 - Any run with `ok: false`, a nonzero error list, or a missing final usage object
   → discard the run, note it, re-measure once; two failures → record as failed
   config with the error text.
+
+## Methodology note (autoresearch adaptation)
+
+This loop follows the [karpathy/autoresearch](https://github.com/karpathy/autoresearch)
+design (README @ HEAD, checked 2026-08-30): a human/agent-written program file
+(here `/tmp/program-glm-bench.md` driving the Pi worker, mirroring its
+`program.md`), a fixed per-experiment protocol budget (here 1 warmup + 3
+measured 256-token runs instead of its fixed 5-minute train budget, so configs
+stay comparable), a single primary metric (median single-stream tok/s, the
+analog of its val_bpb) gated by a hard quality floor (>=90% on eval.py) the
+original does not need, and an append-only experiment log (`results/experiments.csv`)
+with keep/revert decisions. Deviations from the original: our per-run cost is
+minutes not seconds, so the sweep is bounded to the factors above rather than
+open-ended code mutation, and every claim is hardware-local (same non-transferability
+caveat autoresearch documents).
