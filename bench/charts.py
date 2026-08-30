@@ -79,10 +79,10 @@ def main():
     for r in rows:
         r["pareto"] = not dominated(r)
     n = len(rows)
-    scatter(rows, "cost_per_task_usd_low", "quality_index", "GPU-energy cost per successful task (USD, low band)", "Quality Index", f"Quality vs cost per successful task (n={n}, GPU-only energy)", f"{outdir}/qi-vs-cost.svg", logx=True)
+    scatter(rows, "cost_per_task_usd_low", "quality_index", "Snapshot-proxy cost per successful task (USD, hypothetical low band; not integrated energy)", "Quality Index", f"Quality vs snapshot-proxy cost per task (n={n}; proxy, not measured)", f"{outdir}/qi-vs-cost.svg", logx=True)
     scatter(rows, "t_task_s", "quality_index", "Median time per successful task (s)", "Quality Index", f"Quality vs median time per task (n={n})", f"{outdir}/qi-vs-time.svg")
     scatter(rows, "median_tok_s", "quality_index", "Median decode tok/s", "Quality Index", f"Quality vs aggregate throughput (n={n})", f"{outdir}/qi-vs-tokps.svg")
-    scatter(rows, "energy_gpu_wh", "quality_index", "GPU energy per successful task (Wh, lower bound)", "Quality Index", f"Quality vs GPU energy efficiency (n={n})", f"{outdir}/qi-vs-energy.svg")
+    scatter(rows, "energy_gpu_wh", "quality_index", "GPU snapshot-power proxy (Wh; not integrated)", "Quality Index", f"Quality vs GPU snapshot-power proxy (n={n})", f"{outdir}/qi-vs-energy.svg")
 
     # Throughput/latency vs concurrency, from raw speed.jsonl (measure.py sweep
     # rows). Optional: chart is skipped when the file is absent.

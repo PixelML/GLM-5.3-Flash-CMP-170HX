@@ -1,6 +1,6 @@
 # Candidate — a checkpoint that would actually fit
 
-Status: not-attempted (no qualifying checkpoint existed as of 2026-08-30)
+Status: not-attempted (no runtime-compatible candidate existed as of 2026-08-30)
 Date: 2026-08-30
 
 ## What would qualify
@@ -8,16 +8,19 @@ Date: 2026-08-30
 A W4A16/AWQ/GPTQ-class quant whose **exact blob total is <= ~220 GiB**
 (55 GiB x 4 cards), leaving per-card room for CUDA context, activations, and a
 usable KV pool at TP=4. Practically: a true 3-bit quant of GLM-5.3-Flash, or a
-4-bit quant with expert-layer exclusions. Note the current 198.1 GiB AWQ
-checkpoint already fits the four-card budget on paper (49.5 GiB/card); its
-blocker is runtime support, not size.
+4-bit quant with expert-layer exclusions. Two checkpoints already fit the
+four-card budget on paper — the 198.1 GiB AWQ INT4 (49.5 GiB/card; blocked by
+runtime support, see [AWQ attempt](../awq-int4-vllm/README.md)) and the
+146.05 GiB UD-IQ4_XS GGUF (36.5 GiB/card; since measured on 2026-08-30, see
+[GGUF attempt](../gguf-ud-iq4xs-llamacpp/README.md)). Size alone is therefore
+not the open question here; a runtime-compatible higher-quality lane is.
 
 ## Search performed
 
 HF search for `GLM-5.3-Flash` on 2026-08-30 (community-visible quants
 enumerated): NVFP4, EXL3/TR3 4bpw, AWQ INT4, FP8, BF16, GGUF, MLX. **None met
-the byte budget.** Re-run this search before assuming the conclusion still
-holds — new quants appear frequently.
+the byte budget with a usable runtime at that date.** Re-run this search
+before assuming the conclusion still holds — new quants appear frequently.
 
 ## Also required
 

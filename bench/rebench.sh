@@ -41,9 +41,16 @@ until curl -sf "http://127.0.0.1:${PORT}/health" 2>/dev/null | grep -q ok; do
   [ "$SECONDS" -lt "$deadline" ] || { echo "health timeout"; exit 1; }
   sleep 5
 done
-# Race the workload against the watcher: any guard failure or server death
-# terminates the owned group and fails the run immediately.
-bash bench/phase63-driver.sh &
+# One fresh run directory, created BEFORE launch; refuse to reuse one.
+# Exactly ONE watched driver execution writes into it.
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
+OUTDIR="results/run-${RUN_ID}"
+[ ! -e "$OUTDIR" ] || { echo "refusing pre-existing output dir $OUTDIR"; exit 1; }
+mkdir -p "$OUTDIR"
+
+# Race the single watched driver against the safety watcher: any guard
+# failure, watcher exit, or server death fails the whole run immediately.
+OUTDIR="$OUTDIR" bash bench/phase63-driver.sh &
 DRIVER_PID=$!
 while kill -0 "$DRIVER_PID" 2>/dev/null; do
   if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
@@ -67,13 +74,34 @@ done
 wait "$DRIVER_PID"; driver_rc=$?
 if [ "$driver_rc" -ne 0 ]; then echo "workload failed rc=$driver_rc"; exit 1; fi
 
-# Fresh run directory: no stale rows can mix into this run's evidence.
-RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
-OUTDIR="results/run-${RUN_ID}"
-mkdir -p "$OUTDIR"
-OUTDIR="$OUTDIR" bash bench/phase63-driver.sh
-# Derive this run's experiments row from its own raw logs + snapshot.
+# Every artifact of this run derives from this run's own outputs.
 bench/derive-row.sh "$OUTDIR"
-python3 bench/summarize.py "$OUTDIR/experiments.csv" "$OUTDIR/quality.jsonl" "$OUTDIR/summary.csv"
+python3 bench/summarize.py "$OUTDIR/experiments.csv" "$OUTDIR/quality.jsonl" "$OUTDIR/summary.csv" > "$OUTDIR/summary.json"
 python3 bench/charts.py "$OUTDIR/summary.csv" "$OUTDIR/charts" "$OUTDIR/ladder.jsonl"
+REBENCH_OUTDIR="$OUTDIR" python3 - <<'PY'
+import json, os
+from datetime import datetime, timezone
+out = os.environ["REBENCH_OUTDIR"]
+manifest = {
+    "kind": "rebench-run",
+    "created_utc": datetime.now(timezone.utc).isoformat(),
+    "run_dir": out,
+    "artifacts": {
+        "warmups": out + "/warmups.jsonl",
+        "speed_c1": out + "/speed-c1.jsonl",
+        "ladder": out + "/ladder.jsonl",
+        "soak": out + "/soak.jsonl",
+        "quality": out + "/quality.jsonl",
+        "experiments_csv": out + "/experiments.csv",
+        "summary_csv": out + "/summary.csv",
+        "summary_json": out + "/summary.json",
+        "charts_dir": out + "/charts",
+        "gpu_snapshot": out + "/gpu-final.csv",
+    },
+}
+with open(out + "/run-manifest.json", "w") as f:
+    json.dump(manifest, f, indent=2)
+    f.write("\n")
+print("run manifest written")
+PY
 echo "rebench complete: $OUTDIR"

@@ -29,8 +29,11 @@ if [ "${1:-}" = "--watch" ]; then
   while true; do
     [ -f "$stop_file" ] && exit 0
     if [ -n "$WATCH_PID" ] && ! kill -0 "$WATCH_PID" 2>/dev/null; then
-      echo "[thermal-watch] server process gone; watch exits"
-      exit 0
+      # Leader death is NOT a clean exit: children (llama-server, tee) can
+      # survive the setsid leader. Terminate the whole owned group and fail.
+      echo "[thermal-watch] FAIL-CLOSED: server leader gone; killing owned group"
+      stop_owned
+      exit 1
     fi
     if ! out=$(nvidia-smi --query-gpu=temperature.gpu,temperature.memory \
                 --format=csv,noheader,nounits 2>&1); then
