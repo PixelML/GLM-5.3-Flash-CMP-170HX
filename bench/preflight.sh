@@ -42,13 +42,16 @@ else
 fi
 
 # 2. Enough free VRAM on every card (weights ~36.5 GiB/card at 4-way split + ctx/KV).
-need_mib=36000
+need_mib=39000
 while read -r idx free; do
   if [ "$free" -lt "$need_mib" ]; then
     echo "FAIL: GPU $idx has ${free} MiB free (< ${need_mib} MiB needed)"
     fail=1
   fi
-done < <(nvidia-smi --query-gpu=index,memory.free --format=csv,noheader,nounits 2>/dev/null)
+# Guard: preflight aborts when nvidia-smi errored, so only rows with a valid
+# numeric index exist here; any stray error text has no comma+index and is
+# skipped by the awk filter.
+done < <(nvidia-smi --query-gpu=index,memory.free --format=csv,noheader,nounits 2>/dev/null | awk -F", " '$1 ~ /^[0-9]+$/ {print}')
 
 # 3. Model staging complete: shard count, per-shard size, exact byte total, and
 #    full SHA256 verification (opt-out: PREFLIGHT_HASH=0).

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Read-only waiter. Logs every 60 s: per-GPU used memory, shard staging state.
 # NEVER starts, stops, or signals anything. Writes only to results/waitlog.csv.
-# Window = every visible GPU < 2048 MiB used AND the staged checkpoint is
-# complete (EXPECT_SHARDS shards, EXPECT_BYTES total, SHA256SUMS present).
+# Window = every visible GPU reports numeric used-memory < 2048 MiB AND
+# the staged checkpoint is complete (EXPECT_SHARDS shards, EXPECT_BYTES
+# total, SHA256SUMS present) AND root fs < 90% used AND the shared storage
+# mount (STORAGE_MOUNT) is read-write. Proceed manually when the CSV shows
+# complete=1; there is no auto-trigger.
 # Proceed manually when the CSV shows complete=1; there is no auto-trigger.
 set -u
 cd "$(dirname "$0")/.."
@@ -30,6 +33,10 @@ while true; do
 done
 root_pct=$(df -P / | awk 'NR==2 {gsub(/%/,""); print $5}')
 if [ -z "$root_pct" ] || ! [[ "$root_pct" =~ ^[0-9]+$ ]] || [ "$root_pct" -ge 90 ]; then
+  gpus_ok=0
+fi
+STORAGE_MOUNT="${STORAGE_MOUNT:-/mnt/model-storage}"
+if ! findmnt -no OPTIONS "$STORAGE_MOUNT" 2>/dev/null | grep -qw rw; then
   gpus_ok=0
 fi
   shards_ok=0; [ "$shards" -eq "$EXPECT_SHARDS" ] && shards_ok=1

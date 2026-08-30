@@ -25,6 +25,17 @@ if [ "${1:-}" = "--watch" ]; then
       [ -z "$WATCH_PID" ] || kill "$WATCH_PID" 2>/dev/null || true
       exit 1
     fi
+    n=$(printf "%s\n" "$out" | grep -c .)
+    if [ "$n" -ne "${EXPECT_GPUS:-4}" ]; then
+      echo "[thermal-watch] GPU count changed: $n != ${EXPECT_GPUS:-4}"
+      [ -z "$WATCH_PID" ] || kill "$WATCH_PID" 2>/dev/null || true
+      exit 1
+    fi
+    if dmesg -T 2>/dev/null | grep -qi "NVRM.*Xid"; then
+      echo "[thermal-watch] Xid detected in kernel log"
+      [ -z "$WATCH_PID" ] || kill "$WATCH_PID" 2>/dev/null || true
+      exit 1
+    fi
     breach=""
     while IFS= read -r line; do
       IFS=, read -r tc tm <<< "$(echo "$line" | tr -d ' ')"
