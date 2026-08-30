@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Phase C (#63) baseline driver: 3 warm-ups + 5 measured reps at concurrency 1,
+# then quality pack, bounded concurrency ladder, and a time-boxed soak.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+BASE="${BASE:-http://127.0.0.1:8199}"
+PROMPT="$(cat bench/prompt-1k.txt)"
+GUARD=bench/thermal-guard.sh
+mkdir -p results/phase63
+
+echo "== thermal guard =="
+"$GUARD"
+
+echo "== 3 warm-up runs (discarded) =="
+python3 bench/measure.py --base "$BASE" --prompt "$PROMPT" --max-tokens 256 \
+  --concurrency 1 --runs 3 --out results/phase63/warmups.jsonl \
+  | tee results/phase63/warmups.log
+"$GUARD"
+
+echo "== 5 measured single-stream reps =="
+python3 bench/measure.py --base "$BASE" --prompt "$PROMPT" --max-tokens 256 \
+  --concurrency 1 --runs 5 --out results/phase63/speed-c1.jsonl \
+  | tee results/phase63/speed-c1.log
+"$GUARD"
+
+echo "== quality / validity pack =="
+python3 bench/eval.py --base "$BASE" --buckets math,instruction,coding,longctx,heldout \
+  --out results/phase63/quality.jsonl | tee results/phase63/quality.log
+"$GUARD"
+
+echo "== bounded concurrency ladder (1,2,4 x 2 reps) =="
+python3 bench/measure.py --base "$BASE" --prompt "$PROMPT" --max-tokens 256 \
+  --concurrency 1,2,4 --runs 2 --out results/phase63/ladder.jsonl \
+  | tee results/phase63/ladder.log
+"$GUARD"
+
+echo "== 20-min soak: sustained c=2, 256-tok completions =="
+SOAK_END=$((SECONDS + 1200))
+soak_n=0
+: > results/phase63/soak.jsonl
+while [ "$SECONDS" -lt "$SOAK_END" ]; do
+  python3 bench/measure.py --base "$BASE" --prompt "$PROMPT" --max-tokens 256 \
+    --concurrency 2 --runs 1 --out results/phase63/soak.jsonl \
+    | tee -a results/phase63/soak.log
+  soak_n=$((soak_n+1))
+  "$GUARD" || { echo "soak stopped by guard at rep $soak_n"; break; }
+done
+echo "soak reps completed: $soak_n"
+
+echo "== gpu snapshot =="
+nvidia-smi --query-gpu=index,memory.used,memory.total,temperature.gpu,temperature.memory,power.draw \
+  --format=csv,noheader | tee results/phase63/gpu-final.csv
+echo "== driver complete =="
