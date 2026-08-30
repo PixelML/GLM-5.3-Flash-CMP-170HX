@@ -5,9 +5,14 @@ Captures cold/warm TTFT, inter-token latency, end-to-end time,
 per-request and aggregate output throughput, GPU memory/temps/power.
 Token counts come from the final usage object in streaming responses.
 """
-import argparse, asyncio, json, statistics, subprocess, time
-from dataclasses import dataclass, asdict, field
-from typing import Optional
+import argparse
+import asyncio
+import json
+import statistics
+import subprocess
+import time
+from dataclasses import dataclass, field
+
 import aiohttp
 
 
@@ -19,7 +24,7 @@ class Sample:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     ok: bool = True
-    err: Optional[str] = None
+    err: str | None = None
 
 
 async def one_request(session, base, payload, sample_out):
@@ -43,17 +48,22 @@ async def one_request(session, base, payload, sample_out):
                 obj = json.loads(body)
                 if obj.get("usage"):
                     usage = obj["usage"]
-                now = time.perf_counter()
-                if prev is None:
-                    sample_out.t_first = now - t0
-                else:
-                    itl.append((now - prev) * 1000)
-                prev = now
-        sample_out.t_last = (prev - t0) if prev else 0.0
+                choice = ((obj.get("choices") or [{}])[0].get("delta") or {})
+                if choice.get("content"):
+                    now = time.perf_counter()
+                    if prev is None:
+                        sample_out.t_first = now - t0
+                    else:
+                        itl.append((now - prev) * 1000)
+                    prev = now
+        sample_out.t_last = time.perf_counter() - t0
         sample_out.itl_ms = itl
         if usage:
             sample_out.prompt_tokens = usage.get("prompt_tokens", 0)
             sample_out.completion_tokens = usage.get("completion_tokens", 0)
+        else:
+            sample_out.ok = False
+            sample_out.err = "missing final usage object"
     except Exception as e:
         sample_out.ok = False
         sample_out.err = f"{type(e).__name__}: {e}"
@@ -94,9 +104,11 @@ async def sweep(base, prompt, max_tokens, concurrencies, runs, out_path, seed):
                 }
                 rows.append(row)
                 print(json.dumps(row))
-    with open(out_path, "a") as f:
-        for row in rows:
-            f.write(json.dumps(row) + "\n")
+    def _append():
+        with open(out_path, "a") as f:
+            for row in rows:
+                f.write(json.dumps(row) + "\n")
+    await asyncio.to_thread(_append)
 
 
 def gpu_snapshot():

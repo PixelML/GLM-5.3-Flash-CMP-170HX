@@ -2,7 +2,9 @@
 """Dependency-free SVG charts from results/summary.csv (summarize.py output).
 Okabe-Ito palette; every chart labels points, shows n, and marks the Pareto
 frontier. Usage: python3 charts.py [summary.csv] [outdir]"""
-import csv, json, math, sys
+import csv
+import math
+import sys
 from pathlib import Path
 
 # Okabe-Ito
@@ -26,7 +28,7 @@ def scatter(rows, xkey, ykey, xlabel, ylabel, title, out, logx=False, ymax=None)
     def py(v): return H-M - v / max(ymax-ymin, 1e-12) * (H-M-40) - 10
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" role="img" aria-label="{esc(title)}">',
              f'<title>{esc(title)}</title>', '<rect width="100%" height="100%" fill="white"/>']
-    for gv in range(0, 6):
+    for gv in range(6):
         gy = py(ymax*gv/5)
         parts.append(f'<line x1="{M}" y1="{gy:.0f}" x2="{W-20}" y2="{gy:.0f}" stroke="#ddd"/>'
                      f'<text x="{M-8}" y="{gy+4:.0f}" font-size="11" text-anchor="end" fill="#444">{ymax*gv/5:.3g}</text>')
@@ -48,12 +50,12 @@ def main():
     outdir = sys.argv[2] if len(sys.argv) > 2 else "results/charts"
     Path(outdir).mkdir(parents=True, exist_ok=True)
     rows = []
-    for r in csv.DictReader(open(src)):
-        for k in ("median_tok_s", "ttft_ms", "quality_index", "energy_gpu_wh",
-                  "cost_per_task_usd_low", "t_task_s"):
-            r[k] = float(r[k]) if r.get(k) not in (None, "", "None") else None
-        rows.append(r)
-    frontier = set(json.loads(rows[0].get("pareto_frontier", "[]"))) if rows else set()
+    with open(src, newline="") as fh:
+        for r in csv.DictReader(fh):
+            for k in ("median_tok_s", "ttft_ms", "quality_index", "energy_gpu_wh",
+                      "cost_per_task_usd_low", "t_task_s"):
+                r[k] = float(r[k]) if r.get(k) not in (None, "", "None") else None
+            rows.append(r)
     # summary.csv is row-per-config; frontier membership is recomputed here from QI/tok
     for r in rows:
         r["pareto"] = True  # recompute below

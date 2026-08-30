@@ -3,8 +3,12 @@
 Public/licensed tasks only. No LLM judge. Scores are exact-match / pass-based.
 Usage: BASE=http://127.0.0.1:8199 python3 eval.py --out results.jsonl
 """
-import argparse, json, re, time, urllib.request, urllib.error
-
+import argparse
+import json
+import re
+import time
+import urllib.error
+import urllib.request
 
 TASKS = []
 def task(fn):
@@ -36,7 +40,7 @@ def extract_boxed(text):
 
 
 def extract_code_fences(text):
-    return re.findall(r"```(?:python)?\n(.*?)```", text, re.S)
+    return re.findall(r"```(?:python)?\n(.*?)```", text, re.DOTALL)
 
 
 # ---------- MATH (GSM8K-style public subset; deterministic exact match) ------
@@ -115,45 +119,51 @@ def instruction_eval(base):
 # subprocess runs with cwd=tmpdir; the code under test is passed as a string).
 CODING_TASKS = [
     (
-        "Write a Python function is_balanced(s) that returns True if the "
+        ("Write a Python function is_balanced(s) that returns True if the "
         "parentheses in the string s are balanced, False otherwise. Only "
-        " '(' and ')' matter. Answer with a single Python code block only.",
-        "from solution import is_balanced\n"
-        "assert is_balanced('') == True\n"
-        "assert is_balanced('()') == True\n"
-        "assert is_balanced('(())') == True\n"
-        "assert is_balanced('(()') == False\n"
-        "assert is_balanced('())') == False\n"
-        "assert is_balanced('a(b)c(d)e') == True\n"
-        "assert is_balanced(')(') == False\n"
-        "print('PASS')\n",
+        " '(' and ')' matter. Answer with a single Python code block only."),
+        (
+            "from solution import is_balanced\n"
+            "assert is_balanced('') == True\n"
+            "assert is_balanced('()') == True\n"
+            "assert is_balanced('(())') == True\n"
+            "assert is_balanced('(()') == False\n"
+            "assert is_balanced('())') == False\n"
+            "assert is_balanced('a(b)c(d)e') == True\n"
+            "assert is_balanced(')(') == False\n"
+            "print('PASS')\n"
+        ),
     ),
     (
-        "Write a Python function second_max(nums) that returns the second "
+        ("Write a Python function second_max(nums) that returns the second "
         "largest distinct value in the list nums, or None if fewer than two "
         "distinct values exist. Do not sort the full list with sorted() or "
-        ".sort(); use a single pass. Answer with a single Python code block only.",
-        "from solution import second_max\n"
-        "assert second_max([1, 3, 2]) == 2\n"
-        "assert second_max([5, 5, 4]) == 4\n"
-        "assert second_max([7]) is None\n"
-        "assert second_max([2, 2]) is None\n"
-        "assert second_max([-1, -5, -3]) == -3\n"
-        "assert second_max([10, 9, 8, 9]) == 9\n"
-        "print('PASS')\n",
+        ".sort(); use a single pass. Answer with a single Python code block only."),
+        (
+            "from solution import second_max\n"
+            "assert second_max([1, 3, 2]) == 2\n"
+            "assert second_max([5, 5, 4]) == 4\n"
+            "assert second_max([7]) is None\n"
+            "assert second_max([2, 2]) is None\n"
+            "assert second_max([-1, -5, -3]) == -3\n"
+            "assert second_max([10, 9, 8, 9]) == 9\n"
+            "print('PASS')\n"
+        ),
     ),
     (
-        "Write a Python function flatten(d) that takes a dict whose values "
+        ("Write a Python function flatten(d) that takes a dict whose values "
         "may be nested dicts (arbitrary depth, string keys) and returns a "
         "flat dict where nested keys are joined with dots, e.g. "
-        "{'a': {'b': 1}} -> {'a.b': 1}. Answer with a single Python code block only.",
-        "from solution import flatten\n"
-        "assert flatten({'a': 1}) == {'a': 1}\n"
-        "assert flatten({'a': {'b': 1}}) == {'a.b': 1}\n"
-        "assert flatten({'a': {'b': {'c': 3}}}) == {'a.b.c': 3}\n"
-        "assert flatten({'x': 1, 'y': {'z': 2}}) == {'x': 1, 'y.z': 2}\n"
-        "assert flatten({}) == {}\n"
-        "print('PASS')\n",
+        "{'a': {'b': 1}} -> {'a.b': 1}. Answer with a single Python code block only."),
+        (
+            "from solution import flatten\n"
+            "assert flatten({'a': 1}) == {'a': 1}\n"
+            "assert flatten({'a': {'b': 1}}) == {'a.b': 1}\n"
+            "assert flatten({'a': {'b': {'c': 3}}}) == {'a.b.c': 3}\n"
+            "assert flatten({'x': 1, 'y': {'z': 2}}) == {'x': 1, 'y.z': 2}\n"
+            "assert flatten({}) == {}\n"
+            "print('PASS')\n"
+        ),
     ),
 ]
 
@@ -162,22 +172,28 @@ def _run_coding_task(model_output, harness_code):
     """Extract code from the model output, run the fixed test harness in a
     subprocess. Returns (ok, detail). 25 s hard timeout; the harness only
     asserts on pure functions and imports only the candidate solution."""
-    import os, re, subprocess, tempfile
+    import os
+    import re
+    import subprocess
+    import tempfile
     # 'harness' here is the raw model output; extract the first fenced block
     # if present, else use the whole output as the code.
     fence = chr(96) * 3
-    m = re.search(fence + r"(?:python)?\s*\n(.*?)" + fence, model_output, re.S)
+    m = re.search(fence + r"(?:python)?\s*\n(.*?)" + fence, model_output, re.DOTALL)
     code = m.group(1) if m else model_output
     with tempfile.TemporaryDirectory() as td:
         sol = os.path.join(td, "solution.py")
         test = os.path.join(td, "test_harness.py")
+        sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "sandboxed_python.sh")
         with open(sol, "w") as f:
             f.write(code + "\n")
         with open(test, "w") as f:
             f.write(harness_code)
         try:
-            r = subprocess.run(["python3", "test_harness.py"], cwd=td,
-                               capture_output=True, text=True, timeout=25)
+            r = subprocess.run([sandbox, test], cwd=td,
+                               capture_output=True, text=True, timeout=25,
+                               check=False)
             return (r.returncode == 0 and "PASS" in r.stdout,
                     (r.stdout + r.stderr)[-200:])
         except subprocess.TimeoutExpired:
@@ -215,16 +231,18 @@ HELDOUT_INSTR = [
 
 HELDOUT_CODE = [
     (
-        "Write a Python function count_vowels(s) that returns the number of "
+        ("Write a Python function count_vowels(s) that returns the number of "
         "vowels (a, e, i, o, u, case-insensitive) in the string s. Answer with "
-        "a single Python code block only.",
-        "from solution import count_vowels\n"
-        "assert count_vowels('hello') == 2\n"
-        "assert count_vowels('WORLD') == 1\n"
-        "assert count_vowels('xyz') == 0\n"
-        "assert count_vowels('') == 0\n"
-        "assert count_vowels('AeiOu') == 5\n"
-        "print('PASS')\n",
+        "a single Python code block only."),
+        (
+            "from solution import count_vowels\n"
+            "assert count_vowels('hello') == 2\n"
+            "assert count_vowels('WORLD') == 1\n"
+            "assert count_vowels('xyz') == 0\n"
+            "assert count_vowels('') == 0\n"
+            "assert count_vowels('AeiOu') == 5\n"
+            "print('PASS')\n"
+        ),
     ),
 ]
 
@@ -258,21 +276,43 @@ def heldout_eval(base):
 
 
 # ---------- LONG-CONTEXT RETRIEVAL (synthetic needle, deterministic) --------
-def needle_task(base, ctx_tokens_approx=2000):
+SENTENCE = ("The warehouse ledger records daily grain deliveries. Rows repeat "
+            "with minor variations in tonnage and dock number.")
+SENTENCE_APPROX_TOKENS = 27  # ~1.35 tokens/word x 20 words; refined by usage
+
+
+def _average_prompt_tokens(samples):
+    known = [s for s in samples if isinstance(s.get("prompt_tokens"), int)]
+    if not known:
+        return None
+    return sum(s["prompt_tokens"] for s in known) // len(known)
+
+
+def needle_task(base, ctx_tokens_approx=2000, position_fraction=0.5):
     needle = f"The access code for vault {ctx_tokens_approx} is ZX-Q7-1943."
-    filler = ("The warehouse ledger records daily grain deliveries. Rows repeat with minor variations in tonnage and dock number. " * 80)
-    q = f"{filler}\n\n{needle}\n\n{filler}\n\nWhat is the access code for vault {ctx_tokens_approx}? Answer with the code only."
+    total_reps = max(1, round(ctx_tokens_approx / SENTENCE_APPROX_TOKENS))
+    pre_reps = max(0, round(total_reps * position_fraction))
+    post_reps = max(0, total_reps - pre_reps)
+    pre = "\n".join(SENTENCE for _ in range(pre_reps))
+    post = "\n".join(SENTENCE for _ in range(post_reps))
+    q = f"{pre}\n\n{needle}\n\n{post}\n\nWhat is the access code for vault {ctx_tokens_approx}? Answer with the code only."
     try:
         out, usage, dt = call(base, [{"role": "user", "content": q}], max_tokens=64)
         ok = "ZX-Q7-1943" in out
-        return [{"bucket": "longctx", "task": f"needle@{ctx_tokens_approx}", "ok": bool(ok), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2)}]
+        return [{"bucket": "longctx", "task": f"needle@{ctx_tokens_approx}:pos{position_fraction}", "ok": bool(ok), "prompt_tokens": usage.get("prompt_tokens"), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2)}]
     except Exception as e:
-        return [{"bucket": "longctx", "task": f"needle@{ctx_tokens_approx}", "ok": False, "err": str(e)[:200]}]
+        return [{"bucket": "longctx", "task": f"needle@{ctx_tokens_approx}:pos{position_fraction}", "ok": False, "err": str(e)[:200]}]
 
 
 @task
 def longctx_eval(base):
-    return needle_task(base, 2000) + needle_task(base, 4000) + needle_task(base, 8000)
+    results = (needle_task(base, 2000, 0.25) + needle_task(base, 4000, 0.5)
+               + needle_task(base, 8000, 0.75))
+    avg = _average_prompt_tokens(results)
+    for r in results:
+        r["prompt_tokens_target_approx"] = avg
+        r["label"] = f"needle@{r['task'].split('@')[1].split(':')[0]}:avg{avg}"
+    return results
 
 
 BUCKETS = {"math": math_eval, "instruction": instruction_eval,
@@ -290,8 +330,7 @@ if __name__ == "__main__":
     for b in a.buckets.split(","):
         all_results.extend(BUCKETS[b](a.base))
     with open(a.out, "w") as f:
-        for r in all_results:
-            f.write(json.dumps(r) + "\n")
+        f.writelines(json.dumps(r) + "\n" for r in all_results)
     ok_count = sum(1 for r in all_results if r.get("ok"))
     print(json.dumps({"total": len(all_results), "passed": ok_count, "rate": round(ok_count/len(all_results), 3) if all_results else 0}))
     for r in all_results:

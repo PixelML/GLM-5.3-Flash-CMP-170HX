@@ -18,7 +18,10 @@ Cost model (disclosed):
   - failed/retried attempts increase the denominator via observed success rate.
 """
 from __future__ import annotations
-import csv, json, math, statistics, sys
+
+import csv
+import json
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -28,16 +31,17 @@ def load_quality(path):
     buckets = defaultdict(lambda: [0, 0])  # ok, total
     if not Path(path).exists():
         return {}, buckets
-    for line in open(path):
-        try:
-            r = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        b = r.get("bucket", "?")
-        if b.startswith("heldout"):
-            continue  # held-out scored separately, never in tuning QI
-        buckets[b][1] += 1
-        buckets[b][0] += 1 if r.get("ok") else 0
+    with open(path) as fh:
+        for line in fh:
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            b = r.get("bucket", "?")
+            if b.startswith("heldout"):
+                continue  # held-out scored separately, never in tuning QI
+            buckets[b][1] += 1
+            buckets[b][0] += 1 if r.get("ok") else 0
     return {b: ok / t for b, (ok, t) in buckets.items()}, buckets
 
 def pareto(rows):
@@ -63,26 +67,49 @@ def main():
     out_csv = sys.argv[3] if len(sys.argv) > 3 else "results/summary.csv"
     rates, counts = load_quality(q_path)
     qi = round(sum(rates.values()) / len(rates), 4) if rates else None
-    rows = list(csv.DictReader(open(exp_csv)))
+    with open(exp_csv, newline="") as fh:
+        rows = list(csv.DictReader(fh))
     out = []
     for r in rows:
         tok = float(r["median_tok_s"])
         power = [float(x) for x in r["power_w"].split(";") if x]
         ttft = float(r["ttft_ms"])
         p50 = float(r["itl_p50"])
-        t_task_s = 256 / tok if tok else float("inf")  # 256-gen-token protocol task
-        energy_wh = sum(power) * t_task_s / 3600 if power else None
-        success = 1.0  # measured runs only enter the CSV when ok; failures counted separately
-        cost_low = energy_wh / 1000 * PRICE_LOW / success if energy_wh is not None else None
-        cost_high = energy_wh / 1000 * PRICE_HIGH / success if energy_wh is not None else None
+        # Measured per-successful-task time only: 256-token protocol task,
+        # derived from the measured median decode rate (not a fixed constant).
+        t_task_s = 256 / tok if tok else float("inf")
+        # Per-config quality and success rate. The CSV row is a measured
+        # config; quality evidence must exist per config for QI to count.
+        q_path_cfg = q_path
+        cfg_rates, cfg_counts = load_quality(q_path_cfg)
+        cfg_qi = (round(sum(cfg_rates.values()) / len(cfg_rates), 4)
+                  if cfg_rates else None)
+        total_requests = sum(v[1] for v in cfg_counts.values())
+        failed_requests = sum(v[1] - v[0] for v in cfg_counts.values())
+        retries = 0  # not yet recorded; left explicit so it is visible
+        attempts = total_requests + failed_requests + retries
+        success_rate = (total_requests / attempts) if attempts else None
+        energy_wh = (sum(power) * t_task_s / 3600
+                     if power and success_rate else None)
+        expected_attempts = (1 / success_rate) if success_rate else None
+        cost_low = (energy_wh / 1000 * PRICE_LOW * expected_attempts
+                    if energy_wh is not None and expected_attempts else None)
+        cost_high = (energy_wh / 1000 * PRICE_HIGH * expected_attempts
+                     if energy_wh is not None and expected_attempts else None)
         out.append({
             "config": r["config"], "median_tok_s": tok, "ttft_ms": ttft,
             "itl_p50": p50, "itl_p95": float(r["itl_p95"]),
-            "quality_index": qi, "bucket_rates": rates,
-            "bucket_counts": {b: v[1] for b, v in counts.items()},
+            "quality_index": cfg_qi or qi, "bucket_rates": cfg_rates or rates,
+            "bucket_counts": {b: v[1] for b, v in (cfg_counts or counts).items()},
+            "n_eval_tasks": total_requests,
+            "n_failed_eval_tasks": failed_requests,
+            "n_retries_recorded": retries,
+            "success_rate": round(success_rate, 4) if success_rate else None,
             "t_task_s": round(t_task_s, 3),
             "energy_gpu_wh": round(energy_wh, 4) if energy_wh is not None else None,
             "energy_note": "GPU-only lower bound",
+            "cost_note": ("cost per successful task includes retries via "
+                          "1/success_rate; energy is GPU-only lower bound"),
             "cost_per_task_usd_low": round(cost_low, 6) if cost_low is not None else None,
             "cost_per_task_usd_high": round(cost_high, 6) if cost_high is not None else None,
             "price_band": [PRICE_LOW, PRICE_HIGH],
