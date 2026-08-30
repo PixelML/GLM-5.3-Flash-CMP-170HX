@@ -16,7 +16,7 @@ cleanup() {
   fi
   # Kill the owned group UNCONDITIONALLY: even if the leader died (watcher
   # kill during load), survivors like tee must not be orphaned.
-  if true; then
+  if [ -n "${SERVER_PID:-}" ]; then
     # serve.sh is launched under setsid below, so its PID is the PGID of an
     # owned process group (llama-server + tee); never a foreign group.
     kill -TERM -- "-$SERVER_PID" 2>/dev/null || kill -TERM "$SERVER_PID" 2>/dev/null || true
@@ -67,5 +67,13 @@ done
 wait "$DRIVER_PID"; driver_rc=$?
 if [ "$driver_rc" -ne 0 ]; then echo "workload failed rc=$driver_rc"; exit 1; fi
 
-python3 bench/summarize.py results/experiments.csv results/phase63/quality-final2.jsonl results/summary.csv
-python3 bench/charts.py results/summary.csv results/phase63/charts results/phase63/ladder.jsonl
+# Fresh run directory: no stale rows can mix into this run's evidence.
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
+OUTDIR="results/run-${RUN_ID}"
+mkdir -p "$OUTDIR"
+OUTDIR="$OUTDIR" bash bench/phase63-driver.sh
+# Derive this run's experiments row from its own raw logs + snapshot.
+bench/derive-row.sh "$OUTDIR"
+python3 bench/summarize.py "$OUTDIR/experiments.csv" "$OUTDIR/quality.jsonl" "$OUTDIR/summary.csv"
+python3 bench/charts.py "$OUTDIR/summary.csv" "$OUTDIR/charts" "$OUTDIR/ladder.jsonl"
+echo "rebench complete: $OUTDIR"

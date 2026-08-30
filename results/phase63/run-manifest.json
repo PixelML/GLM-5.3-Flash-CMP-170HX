@@ -47,9 +47,10 @@
     "core_limit_c": 80,
     "mem_limit_c": 85,
     "snapshot_file": "gpu-final.csv",
-    "throttle_events": 0,
-    "xid_events": 0,
-    "telemetry_note": "single snapshot at end of run + bounded guard calls between stages; continuous watch telemetry for the soak is a known gap in this run and is enforced in bench/rebench.sh for future runs"
+    "throttle_events": "not-recorded (no continuous throttle telemetry this phase; final snapshot only)",
+    "xid_events": "not-recorded (thermal-guard Xid scan ran between phases with no detected events logged; continuous kernel-log capture not committed)",
+    "telemetry_note": "single snapshot at end of run + bounded guard calls between stages; continuous watch telemetry for the soak is a known gap in this run and is enforced in bench/rebench.sh for future runs",
+    "thermal_breaches": 0
   },
   "artifacts": {
     "warmups": "warmups.jsonl",
@@ -60,5 +61,9 @@
     "quality_corrected": "quality-final2.jsonl",
     "summary_csv": "../summary.csv",
     "charts_dir": "charts/"
+  },
+  "harness_git_sha": "resolved-at-publication-freeze (recorded as the exact head in the opening review-request comment; self-referential pin inside the harness history is not possible)",
+  "gpu": {
+    "power_limit_w": "as-configured (operator-set; unchanged this phase; exact per-card limit not queried)"
   }
 }

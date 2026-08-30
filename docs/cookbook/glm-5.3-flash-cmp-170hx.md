@@ -15,11 +15,14 @@ lands here after the run.
 
 ## Choose a recipe
 
+> **Quality gate:** the project quality floor is a 90% tuning-set pass rate.
+> This baseline is below that floor (16/19 tuning passes; 21/26 including
+> held-out). It is a measured research baseline, not a recommended winner;
+> no configuration should be crowned until a lane clears the floor.
+
 | Goal | Artifact | Runtime | Topology | Validation | Recipe |
 | --- | --- | --- | --- | --- | --- |
-| Max speed | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (17.73 tok/s c=1 median) | phase C |
-| Balanced | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (same baseline; no second lane measured yet) | phase C |
-| Max quality | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (QI 0.783; no higher-quality lane measured yet) | phase C |
+| Measured baseline | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (17.73 tok/s c=1 median; QI 0.783 — below the 90% floor) | phase C |
 
 ## Run it
 
@@ -52,7 +55,8 @@ gate, medians reported): 17.73 tok/s aggregate decode,
 17.5-17.7 tok/s with no throttling.
 
 Corrected quality index 0.783 (mean bucket rate over math, instruction,
-coding, long-context; small-sample gate, not a leaderboard). Two harness
+coding, long-context; small-sample gate, not a leaderboard; below the 90%
+project quality floor). Two harness
 defects were found and fixed during this phase — a sandbox wrapper that
 dropped the candidate file from coding tasks, and completion budgets that
 starved reasoning models before any answer bytes were produced. Raw JSONL,

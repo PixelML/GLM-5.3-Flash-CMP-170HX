@@ -89,12 +89,14 @@ import json, statistics, sys
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip().startswith("{") and '"concurrency"' in l]
 rows = [r for r in rows if r.get("ok")]
 assert len(rows) == 3, f"expected 3 ok rows, got {len(rows)}"
-med  = statistics.median(r["tok_per_s_per_req"] for r in rows)
+med  = round(statistics.median(r["tok_per_s_per_req"] for r in rows), 2)
 tok  = round(statistics.mean(r["completion_tokens"] for r in rows))
-ttft = statistics.median(r["ttft_s"] for r in rows) * 1000
-p50  = statistics.median(r["itl_ms_p50"] for r in rows)
-p95  = statistics.median(r["itl_ms_p95"] for r in rows)
-print(round(med,2), tok, round(ttft), p50, p95)
+ttft = round(statistics.median(r["ttft_s"] for r in rows) * 1000)
+def med_or_na(key):
+    vals = [r[key] for r in rows if r.get(key) is not None]
+    return round(statistics.median(vals), 1) if vals else "na"
+p50, p95 = med_or_na("itl_ms_p50"), med_or_na("itl_ms_p95")
+print(med, tok, ttft, p50, p95)
 PY
 )
 read -r med tok ttft p50 p95 <<< "$vals"
@@ -107,6 +109,6 @@ tm=$( echo "$snapshot" | python3 -c "import json,sys; d=json.load(sys.stdin); pr
 pw=$( echo "$snapshot" | python3 -c "import json,sys; d=json.load(sys.stdin); print(';'.join(r['power_w'] for r in d))")
 
 quality_log="${QUALITY_LOG:-results/quality-${NAME}.jsonl}"
-echo "${cfg},${med},${ttft},${p50},${p95},${mem},${tc},${tm},${pw},${quality_log},measured" >> results/experiments.csv
+echo "${cfg},${med},${tok},${ttft},${p50},${p95},${mem},${tc},${tm},${pw},${quality_log},results/raw-${NAME}.jsonl,measured" >> results/experiments.csv
 echo "== [${NAME}] median ${med} tok/s over 3 runs (~${tok} gen tokens/run), ttft ${ttft} ms  (cfg: ${cfg}) =="
 echo "== [${NAME}] stopping server (pid ${SERVER_PID}); trap cleans up =="
