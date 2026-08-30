@@ -14,9 +14,9 @@ Date: 2026-08-30
 
 ## Runtime
 
-- Engine: llama.cpp fork [unslothai/llama.cpp](https://github.com/unslothai/llama.cpp) branch `glm5next/upstream` @ `00699716c275498ff84d71e329178fe21cba56a6`
+- Engine: llama.cpp fork [unslothai/llama.cpp](https://github.com/unslothai/llama.cpp) @ commit `00699716c275498ff84d71e329178fe21cba56a6`
 - Upstream PR: [ggml-org/llama.cpp#27754](https://github.com/ggml-org/llama.cpp/pull/27754) — **open, not merged** as of 2026-08-30 (community-reported status; fork head is the buildable implementation)
-- SM80 support: **yes** — GGML CUDA backend compiles `sm_80` device code natively (measured: CMake configure with `-DCMAKE_CUDA_ARCHITECTURES=80` succeeded against CUDA 13.0.88)
+- SM80 support: **unverified (inferred)** — the fork is pinned and its build flags are documented, but the local build log was never committed, so the earlier "measured build" claim is withdrawn; rebuild and commit a redacted log before serving
 - Topology: single-process `llama-server` with `--split-mode layer` across 4 cards, weight- and KV-split by per-card free VRAM
 - Source: measured (local build), fork topology inferred from llama.cpp multi-GPU docs
 
@@ -29,23 +29,20 @@ Date: 2026-08-30
 
 ## Execution status and outcome
 
-Blocked before first serve (2026-08-30). Runtime build is verified from the
-source review (pinned fork; `sm_80` build flag documented by the fork; not
-independently rebuilt here). Checkpoint staging is in progress: 4 of 5 shards
-were present at the time of the last read-only check (128 GiB of the
-measured 146.05 GiB total), with the fifth shard absent. No serving or
+Blocked before first serve (2026-08-30). Checkpoint staging is in progress:
+4 of 5 shards were present at the time of the last read-only check (128 GiB of
+the measured 146.05 GiB total), with the fifth shard absent. No serving or
 measurement has happened yet. This record will be updated with measured load
 time, TTFT, throughput, and thermals once the model is served.
 
 ## Blocker
 
-**Guest maintenance (measured, 2026-08-30):** after an earlier unrelated
-workload released the cards, the guest entered a maintenance state — the root
-filesystem remounted read-only and the NVIDIA driver stopped responding, so no
-serving attempt has been made yet. The attempt waits for device recovery and a
-preflight pass. The two blockers that killed every earlier attempt (no fitting
-quant, no SM80 runtime for the architecture) clear with this pairing on the
-4-card node.
+Resource conflict (measured, redacted): an unrelated workload occupied the
+cards, then the guest entered maintenance — no serving attempt has been made
+yet. The attempt waits for full resource release (all four cards), a safe root
+filesystem, and a preflight pass. The two blockers that killed every earlier
+attempt (no fitting quant, no SM80 runtime for the architecture) clear with
+this pairing on the 4-card node, pending runtime verification.
 
 **Secondary (inferred, static arithmetic):** `--no-mmap` serving is infeasible
 on this host — 146.05 GiB weights (measured HF blob sum) vs 94 GiB host RAM
