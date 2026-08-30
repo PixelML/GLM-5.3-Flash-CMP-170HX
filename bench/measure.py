@@ -101,6 +101,7 @@ async def sweep(base, prompt, max_tokens, concurrencies, runs, out_path, seed):
                     "prompt_tokens": sum(s.prompt_tokens for s in samples),
                     "completion_tokens": total_ct,
                     "errors": [s.err for s in samples if not s.ok],
+                    "raw_log": out_path,
                 }
                 rows.append(row)
                 print(json.dumps(row))
@@ -116,7 +117,7 @@ def gpu_snapshot():
         out = subprocess.check_output([
             "nvidia-smi", "--query-gpu=index,memory.used,memory.total,temperature.gpu,temperature.memory,power.draw,clocks_throttle_reasons.active",
             "--format=csv,noheader,nounits"], text=True)
-        return [dict(zip(["index", "mem_mib", "mem_total_mib", "temp_core_c", "temp_mem_c", "power_w", "throttle_mask"], l.split(", "))) for l in out.strip().split("\n")]
+        return [dict(zip(["index", "mem_mib", "mem_total_mib", "temp_core_c", "temp_mem_c", "power_w", "throttle_mask"], line.split(", "))) for line in out.strip().split("\n")]
     except Exception:
         return []
 

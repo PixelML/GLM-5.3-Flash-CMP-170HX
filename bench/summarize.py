@@ -75,13 +75,34 @@ def main():
         power = [float(x) for x in r["power_w"].split(";") if x]
         ttft = float(r["ttft_ms"])
         p50 = float(r["itl_p50"])
-        # Measured per-successful-task time only: 256-token protocol task,
-        # derived from the measured median decode rate (not a fixed constant).
-        t_task_s = 256 / tok if tok else float("inf")
+        # End-to-end wall time for the protocol task is measured directly by
+        # measure.py (e2e_s_median); only configs with a matching raw record
+        # get a measured t_task_s. Fallback derives it from the measured rate
+        # and is flagged as derived, not measured.
+        raw_path = r.get("raw_log") or ""
+        measured_e2e = None
+        if raw_path and Path(raw_path).exists():
+            e2e_vals = []
+            with open(raw_path) as rf:
+                for line in rf:
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if rec.get("concurrency") == 1 and rec.get("ok"):
+                        e2e_vals.append(rec.get("e2e_s_median"))
+            if e2e_vals:
+                measured_e2e = sorted(e2e_vals)[len(e2e_vals)//2]
+        if measured_e2e:
+            t_task_s = measured_e2e
+            t_task_src = "measured_e2e"
+        else:
+            t_task_s = 256 / tok if tok else float("inf")
+            t_task_src = "derived_256_over_rate"
         # Per-config quality and success rate. The CSV row is a measured
         # config; quality evidence must exist per config for QI to count.
-        q_path_cfg = q_path
-        cfg_rates, cfg_counts = load_quality(q_path_cfg)
+        cfg_q_path = r.get("quality_log") or q_path
+        cfg_rates, cfg_counts = load_quality(cfg_q_path)
         cfg_qi = (round(sum(cfg_rates.values()) / len(cfg_rates), 4)
                   if cfg_rates else None)
         total_requests = sum(v[1] for v in cfg_counts.values())
@@ -99,6 +120,7 @@ def main():
         out.append({
             "config": r["config"], "median_tok_s": tok, "ttft_ms": ttft,
             "itl_p50": p50, "itl_p95": float(r["itl_p95"]),
+            "quality_log": cfg_q_path if cfg_rates else None,
             "quality_index": cfg_qi or qi, "bucket_rates": cfg_rates or rates,
             "bucket_counts": {b: v[1] for b, v in (cfg_counts or counts).items()},
             "n_eval_tasks": total_requests,
@@ -106,6 +128,7 @@ def main():
             "n_retries_recorded": retries,
             "success_rate": round(success_rate, 4) if success_rate else None,
             "t_task_s": round(t_task_s, 3),
+            "t_task_source": t_task_src,
             "energy_gpu_wh": round(energy_wh, 4) if energy_wh is not None else None,
             "energy_note": "GPU-only lower bound",
             "cost_note": ("cost per successful task includes retries via "

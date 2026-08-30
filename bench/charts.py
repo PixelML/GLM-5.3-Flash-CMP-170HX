@@ -25,8 +25,10 @@ def scatter(rows, xkey, ykey, xlabel, ylabel, title, out, logx=False, ymax=None)
     if logx:
         xmin, xmax = math.log10(max(xmin, 1e-9)), math.log10(max(xmax, 1e-8))
     ymin, ymax = 0, ymax or max(ys) * 1.1
-    def px(v): return M + (logx and (math.log10(max(v,1e-9))-xmin) or (v-xmin)) / max(xmax-xmin, 1e-12) * (W-M-30)
-    def py(v): return H-M - v / max(ymax-ymin, 1e-12) * (H-M-40) - 10
+    def px(v):
+        return M + (logx and (math.log10(max(v,1e-9))-xmin) or (v-xmin)) / max(xmax-xmin, 1e-12) * (W-M-30)
+    def py(v):
+        return H-M - v / max(ymax-ymin, 1e-12) * (H-M-40) - 10
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" role="img" aria-label="{esc(title)}">',
              f'<title>{esc(title)}</title>', '<rect width="100%" height="100%" fill="white"/>']
     for gv in range(6):
@@ -37,7 +39,8 @@ def scatter(rows, xkey, ykey, xlabel, ylabel, title, out, logx=False, ymax=None)
     parts.append(f'<text x="{(W)/2}" y="{H-18}" font-size="13" text-anchor="middle">{esc(xlabel)}{" (log)" if logx else ""}</text>')
     parts.append(f'<text x="16" y="{H/2}" font-size="13" transform="rotate(-90 16 {H/2})" text-anchor="middle">{esc(ylabel)}</text>')
     for i, r in enumerate(rows):
-        if r.get(xkey) is None or r.get(ykey) is None: continue
+        if r.get(xkey) is None or r.get(ykey) is None:
+            continue
         col = C["verm"] if r.get("pareto") else C["blue"]
         parts.append(f'<circle cx="{px(r[xkey]):.1f}" cy="{py(r[ykey]):.1f}" r="5" fill="{col}" fill-opacity="0.85"><title>{esc(r["config"])}: {esc(r[xkey])} / {esc(r[ykey])}</title></circle>')
         parts.append(f'<text x="{px(r[xkey]):.1f}" y="{py(r[ykey])-10:.1f}" font-size="9" text-anchor="middle" fill="#333">{esc(str(i+1))}</text>')
@@ -101,13 +104,15 @@ def main():
             })
     if conc_rows:
         W, H, M = 720, 480, 70
-        parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" role="img" aria-label="throughput vs concurrency">' % (W, H),
+        parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" role="img" aria-label="throughput vs concurrency">',
                  '<title>Throughput and per-stream rate vs concurrency</title>',
                  '<rect width="100%" height="100%" fill="white"/>']
         xmax = max(r["concurrency"] for r in conc_rows)
         ymax = max(r["agg_med"] for r in conc_rows) * 1.15
-        def cx(v): return M + (v - 1) / max(xmax - 1, 1) * (W - M - 40)
-        def cy(v): return H - M - v / ymax * (H - M - 40)
+        def cx(v):
+            return M + (v - 1) / max(xmax - 1, 1) * (W - M - 40)
+        def cy(v):
+            return H - M - v / ymax * (H - M - 40)
         for gv in range(6):
             gy = cy(ymax*gv/5)
             parts.append(f'<line x1="{M}" y1="{gy:.0f}" x2="{W-20}" y2="{gy:.0f}" stroke="#ddd"/>'
