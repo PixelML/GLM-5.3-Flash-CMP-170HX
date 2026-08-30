@@ -1,0 +1,26 @@
+{"bucket": "math", "task": "A bakery sells 240 muffins per day. Each", "ok": true, "gold": "20.16", "pred": "20.16", "tokens": 94, "latency_s": 6.71, "raw": "20.16"}
+{"bucket": "math", "task": "A train travels 420 km in 3.5 hours. A b", "ok": true, "gold": "36", "pred": "36", "tokens": 45, "latency_s": 4.2, "raw": "36"}
+{"bucket": "math", "task": "A shirt costs $60 after a 25% discount. ", "ok": true, "gold": "80", "pred": "80", "tokens": 57, "latency_s": 4.74, "raw": "80"}
+{"bucket": "math", "task": "Compute 17 * 23 - 145. Answer with the n", "ok": true, "gold": "246", "pred": "246", "tokens": 22, "latency_s": 2.86, "raw": "246"}
+{"bucket": "math", "task": "If 3 machines produce 270 parts in 2 hou", "ok": true, "gold": "900", "pred": "900", "tokens": 64, "latency_s": 5.07, "raw": "900"}
+{"bucket": "math", "task": "A rectangle has perimeter 64 and length ", "ok": true, "gold": "240", "pred": "240", "tokens": 53, "latency_s": 4.47, "raw": "240"}
+{"bucket": "math", "task": "A water tank fills at 12 L/min but drain", "ok": true, "gold": "60", "pred": "60", "tokens": 30, "latency_s": 3.37, "raw": "60"}
+{"bucket": "math", "task": "Sum the integers from 1 to 100 inclusive", "ok": true, "gold": "5050", "pred": "5050", "tokens": 30, "latency_s": 3.33, "raw": "5050"}
+{"bucket": "instruction", "task": "Write exactly 3 sentences about the ocea", "ok": false, "tokens": 248, "latency_s": 15.7, "raw": "The ocean covers more than 70% of Earth's surface, making it the largest habitat on the planet. Beneath its waves lies a world of astonishing diversity, from bioluminescent creatures in the midnight zone to vibrant coral reefs teeming with life. Despite centuries of exploration, humans have mapped o"}
+{"bucket": "instruction", "task": "List exactly 5 prime numbers below 20, o", "ok": true, "tokens": 88, "latency_s": 6.48, "raw": "2\n3\n5\n7\n11"}
+{"bucket": "instruction", "task": "Reply with only the word YES if 7 is pri", "ok": true, "tokens": 61, "latency_s": 5.06, "raw": "YES"}
+{"bucket": "instruction", "task": "Produce a JSON object with exactly two k", "ok": true, "tokens": 132, "latency_s": 8.75, "raw": "{\"color\": \"blue\", \"count\": 5}"}
+{"bucket": "instruction", "task": "Say 'alpha' then 'beta' then 'gamma', on", "ok": true, "tokens": 33, "latency_s": 3.53, "raw": "alpha\nbeta\ngamma"}
+{"bucket": "coding", "task": "from solution import is_balanced", "ok": false, "tokens": 512, "latency_s": 29.72, "detail": "Traceback (most recent call last):\n  File \"/tmp/harness.py\", line 1, in <module>\n    from solution import is_balanced\nModuleNotFoundError: No module named 'solution'\n"}
+{"bucket": "coding", "task": "from solution import second_max", "ok": false, "tokens": 512, "latency_s": 30.07, "detail": "Traceback (most recent call last):\n  File \"/tmp/harness.py\", line 1, in <module>\n    from solution import second_max\nModuleNotFoundError: No module named 'solution'\n"}
+{"bucket": "coding", "task": "from solution import flatten", "ok": false, "tokens": 512, "latency_s": 30.51, "detail": "Traceback (most recent call last):\n  File \"/tmp/harness.py\", line 1, in <module>\n    from solution import flatten\nModuleNotFoundError: No module named 'solution'\n"}
+{"bucket": "longctx", "task": "needle@2000:pos0.25", "ok": false, "prompt_tokens": 1526, "tokens": 64, "latency_s": 9.75, "prompt_tokens_target_approx": 3499, "label": "needle@2000:avg3499"}
+{"bucket": "longctx", "task": "needle@4000:pos0.5", "ok": false, "prompt_tokens": 3006, "tokens": 64, "latency_s": 13.35, "prompt_tokens_target_approx": 3499, "label": "needle@4000:avg3499"}
+{"bucket": "longctx", "task": "needle@8000:pos0.75", "ok": false, "prompt_tokens": 5966, "tokens": 64, "latency_s": 21.59, "prompt_tokens_target_approx": 3499, "label": "needle@8000:avg3499"}
+{"bucket": "heldout-math", "task": "A printer produces 45 pages per minute. ", "ok": true, "gold": "5400", "pred": "5400", "tokens": 38, "latency_s": 4.37}
+{"bucket": "heldout-math", "task": "A cyclist rides 96 km in 4 hours. What i", "ok": true, "gold": "24", "pred": "24", "tokens": 32, "latency_s": 3.53}
+{"bucket": "heldout-math", "task": "A jacket costs $150 and is discounted by", "ok": true, "gold": "105", "pred": "105", "tokens": 47, "latency_s": 4.45}
+{"bucket": "heldout-math", "task": "Compute 13 * 17 - 121. Answer with the n", "ok": true, "gold": "100", "pred": "100", "tokens": 20, "latency_s": 2.9}
+{"bucket": "heldout-instr", "task": "Write exactly 2 sentences about rivers. ", "ok": false, "tokens": 69, "latency_s": 5.75}
+{"bucket": "heldout-instr", "task": "Reply with only the word NO if 9 is prim", "ok": false, "tokens": 42, "latency_s": 4.02}
+{"bucket": "heldout-code", "task": "from solution import count_vowels", "ok": false, "tokens": 512, "latency_s": 30.02, "detail": "Traceback (most recent call last):\n  File \"/tmp/harness.py\", line 1, in <module>\n    from solution import count_vowels\nModuleNotFoundError: No module named 'solution'\n"}
