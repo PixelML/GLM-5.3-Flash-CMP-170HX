@@ -26,8 +26,12 @@ while true; do
   gpus_ok=1
   [ "${#used[@]}" -eq 0 ] && gpus_ok=0
   for m in "${used[@]}"; do
-    if [ -z "$m" ] || [ "$m" -ge 2048 ]; then gpus_ok=0; fi
-  done
+    if [ -z "$m" ] || ! [[ "$m" =~ ^[0-9]+$ ]] || [ "$m" -ge 2048 ]; then gpus_ok=0; fi
+done
+root_pct=$(df -P / | awk 'NR==2 {gsub(/%/,""); print $5}')
+if [ -z "$root_pct" ] || ! [[ "$root_pct" =~ ^[0-9]+$ ]] || [ "$root_pct" -ge 90 ]; then
+  gpus_ok=0
+fi
   shards_ok=0; [ "$shards" -eq "$EXPECT_SHARDS" ] && shards_ok=1
   bytes_ok=0;  [ "$bytes" -eq "$EXPECT_BYTES" ]   && bytes_ok=1
   complete=$(( gpus_ok && shards_ok && s == 1 && bytes_ok ))
