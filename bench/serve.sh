@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Serve GLM-5.3-Flash UD-IQ4_XS on the three-card node via llama.cpp.
+# Serve GLM-5.3-Flash UD-IQ4_XS on the CMP node via llama.cpp.
 # Requires: llama-server built from unslothai/llama.cpp @ 00699716c275498ff84d71e329178fe21cba56a6
 # Usage: MODEL_DIR=/path/to/shards ./serve.sh
 set -euo pipefail
 : "${MODEL_DIR:?set MODEL_DIR to the directory containing the 5 UD-IQ4_XS shards}"
 : "${LLAMA_SERVER:?set LLAMA_SERVER to the built llama-server binary}"
-: "${MODEL_FILE:-GLM-5.3-Flash-UD-IQ4_XS-00001-of-00005.gguf}"
+MODEL_FILE="${MODEL_FILE:-GLM-5.3-Flash-UD-IQ4_XS-00001-of-00005.gguf}"
 PORT="${PORT:-8199}"
 CTX="${CTX:-16384}"
 SPLIT="${SPLIT:-layer}"
-TSPLIT="${TSPLIT:-}"   # e.g. "1,1,1"; leave empty for auto
+TSPLIT="${TSPLIT:-1,1,1}"   # equal ratios across identical cards; documented default
 PARALLEL="${PARALLEL:-1}"  # concurrent slots; keep 1 for single-stream latency runs
 THREADS="${THREADS:-8}"    # experiment factor 3
 # Remaining permitted factors; empty = server default (record it from the
@@ -31,12 +31,6 @@ if [ -n "$UBATCH" ];      then extra_args+=(--ubatch-size "$UBATCH"); fi
 # (measured, free -h), so --no-mmap is statically infeasible on this node.
 # Inferred from hardware arithmetic, not measured — set NO_MMAP=1 to A/B it.
 
-free0=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | awk '{print int($1/1024)}')
-tsplit_args=()
-if [ -n "$TSPLIT" ]; then
-  tsplit_args=(--tensor-split "$TSPLIT")
-fi
-
 echo "serving on port $PORT, ctx=$CTX, split=$SPLIT, parallel=$PARALLEL"
 exec "$LLAMA_SERVER" \
   --model "$MODEL_DIR/$MODEL_FILE" \
@@ -44,9 +38,9 @@ exec "$LLAMA_SERVER" \
   --ctx-size "$CTX" \
   --n-gpu-layers 999 \
   --split-mode "$SPLIT" \
-  "${tsplit_args[@]}" \
+  --tensor-split "$TSPLIT" \
   --parallel "$PARALLEL" \
   --threads "$THREADS" \
   "${extra_args[@]}" \
   ${NO_MMAP:+--no-mmap} \
-  2>&1 | tee "${SERVE_LOG:-/tmp/llama-server.log}"
+  2>&1 | tee "${SERVE_LOG:-results/serve.log}"
