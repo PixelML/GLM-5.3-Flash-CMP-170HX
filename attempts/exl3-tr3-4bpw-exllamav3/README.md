@@ -7,6 +7,11 @@ Date: 2026-08-30
 
 - [Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw](https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw) @ `25a44fdbf16862a46b7cc9921142c6c81350af2f`
   (byte-identical mirror of brandonmusic snapshot `5ab363a8`)
+- Brandonmusic source snapshot pinned at
+  [brandonmusic/GLM-5.3-Flash-tr3-4bpw](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw)
+  `285507247eb5f031f35c52af5014ea33e1c3e69f` (Hugging Face API, checked
+  2026-08-30); the 120-shard weights byte total below was re-verified at this
+  revision.
 - Size: 175,642,157,752 bytes = 175.64 GB = 163.58 GiB across 120 shards
   (measured: Hugging Face API blob-size sum at the pinned revision, checked
   2026-08-30). Earlier "~171.8 GiB / ~176 GB installed" in this file and the
@@ -27,12 +32,12 @@ Date: 2026-08-30
 
 ## Static fit calculation
 
-- 175.64 GB installed / 3 cards = ~58.55 GB/card = ~54.52 GiB/card if
-  perfectly weight-balanced at TP=3 (measured HF blob sum at the pinned rev,
+- 175.64 GB installed / 4 cards = ~43.91 GB/card = ~40.90 GiB/card if
+  perfectly weight-balanced at TP=4 (measured HF blob sum at the pinned rev,
   arithmetic exact; expert-layout skew remains unverified).
-- On paper this leaves ~9 GiB/card for CUDA context + KV — the only candidate
-  that is even arguable on memory. BUT: routed experts dominate the byte count,
-  and TP=3 weight balance is not guaranteed for expert layouts; treat the fit as
+- On paper this leaves ~23 GiB/card for CUDA context + KV — the most favorable
+  candidate on memory. BUT: routed experts dominate the byte count,
+  and TP=4 weight balance is not guaranteed for expert layouts; treat the fit as
   unverified until a real attempt loads the model.
 
 ## Execution status and outcome
@@ -63,6 +68,6 @@ checkpoint itself is the closest thing to viable; the software around it is not.
 ## Re-run instructions
 
 Blocked until both items above exist. Once an SM80 build is available: stage the
-checkpoint in shared model storage, TP=3 across the three-card node, verify
+checkpoint in shared model storage, TP=4 across the four-card node, verify
 per-card weight placement before accepting the fit estimate, 180 W policy,
 forced airflow, stop at 80 C core / 85 C memory, abort on Xid.
