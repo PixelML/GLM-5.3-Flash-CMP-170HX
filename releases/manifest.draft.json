@@ -7,7 +7,7 @@
   "canonical_model": "GLM-5.3-Flash",
   "platform": "CMP-170HX",
   "github_repo": "PixelML/GLM-5.3-Flash-CMP-170HX",
-  "github_revision": "REFRESH-AT-FINAL-HEAD",
+  "github_revision": "updated-at-landing",
   "sources": [
     {
       "repo": "unsloth/GLM-5.3-Flash-GGUF",

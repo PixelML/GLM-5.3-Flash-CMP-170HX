@@ -43,10 +43,24 @@ Flags are added one at a time; nothing above is asserted to be optimal.
 
 ## Results
 
-Pending. Will include: task-level quality and success rate beside speed,
-quality-vs-cost-per-success chart (GPU-only energy lower bound, disclosed
-hypothetical price band), quality-vs-time, quality-vs-throughput, and the
-Pareto frontier — all regenerated from results/summary.csv by bench/charts.py.
+First measured baseline (phase C, concurrency 1, 400-token prompt /
+256-token completion, c=1 median of 5): 17.73 tok/s aggregate decode,
+14.44 s end-to-end per task. Aggregate throughput is ~flat across the
+1/2/4 concurrency ladder (compute-bound); a 20-minute soak at c=2 held
+17.5-17.7 tok/s with no throttling.
+
+Corrected quality index 0.783 (mean bucket rate over math, instruction,
+coding, long-context; small-sample gate, not a leaderboard). Two harness
+defects were found and fixed during this phase — a sandbox wrapper that
+dropped the candidate file from coding tasks, and completion budgets that
+starved reasoning models before any answer bytes were produced. Raw JSONL,
+the corrected pack, and the defect log are in results/phase63/ (README.md
+inside documents the defects and the corrected per-bucket scores).
+
+Charts (quality-vs-cost with GPU-only energy lower bound and disclosed
+hypothetical price band, quality-vs-time, quality-vs-throughput,
+concurrency-vs-throughput) are regenerated from results/summary.csv by
+bench/charts.py into results/phase63/charts/.
 
 ## What failed (so far)
 
