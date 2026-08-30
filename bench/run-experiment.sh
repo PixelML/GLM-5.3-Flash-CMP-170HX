@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 : "${LLAMA_SERVER:?set LLAMA_SERVER to the built llama-server binary}"
 : "${MODEL_DIR:?set MODEL_DIR to the staged checkpoint directory}"
 PORT="${PORT:-8199}"
-TSPLIT="${TSPLIT:-1,1,1}"   # equal ratios across identical cards; documented default
+TSPLIT="${TSPLIT:-1,1,1,1}"  # equal ratios, one per GPU; documented default
 HEALTH_TIMEOUT_SECS="${HEALTH_TIMEOUT_SECS:-1800}"
 BASE="http://127.0.0.1:${PORT}"
 PROMPT="$(cat bench/prompt-1k.txt)"
