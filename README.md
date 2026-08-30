@@ -2,7 +2,7 @@
 
 Every attempt — successful, failed, or statically impossible — to run
 [GLM-5.3-Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) on
-[NVIDIA CMP 170HX](https://github.com/PixelML/club-cmp170hx) (GA100, SM80, 64 GiB HBM2e) cards.
+[NVIDIA CMP 170HX](https://github.com/PixelML/club-170hx) (GA100, SM80, 64 GiB HBM2e) cards.
 
 One repository per model family/workload: all quantizations, runtimes, and
 attempt outcomes live here. See [AGENTS.md](AGENTS.md) for the publication
