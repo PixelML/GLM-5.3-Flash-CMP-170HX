@@ -1,4 +1,4 @@
-# GLM-5.3-Flash on three-card CMP 170HX — recipe page (research preview)
+# GLM-5.3-Flash on four-card CMP 170HX — recipe page (research preview)
 
 > **Validation:** RESEARCH PREVIEW — no measured results yet; this page is the
 > publication skeleton required before any claim moves in. Every number below is
@@ -7,8 +7,8 @@
 
 ## What will work (candidate, unverified)
 
-Serving [unsloth/GLM-5.3-Flash-GGUF](https://huggingface.co/unsloth/GLM-5.3-Flash-GGUF)
-UD-IQ4_XS (146.05 GiB, MIT) on three 64 GiB CMP 170HX cards via the
+ Serving [unsloth/GLM-5.3-Flash-GGUF](https://huggingface.co/unsloth/GLM-5.3-Flash-GGUF)
+UD-IQ4_XS (146.05 GiB, MIT) on four 64 GiB CMP 170HX cards via the
 [unslothai/llama.cpp](https://github.com/unslothai/llama.cpp) DSA fork — the
 first pairing where the quant fits (~48.7 GiB/card at an even split) and the
 runtime builds for SM80. Static-fit labels are inferred; every measured value
@@ -18,7 +18,7 @@ lands here after the run.
 
 | Goal | Artifact | Runtime | Topology | Validation | Recipe |
 | --- | --- | --- | --- | --- | --- |
-| Max speed | UD-IQ4_XS GGUF | llama.cpp DSA fork | 3-card split (mode TBD) | untested | pending measurement |
+| Max speed | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card split (mode TBD) | untested | pending measurement |
 | Balanced | UD-IQ4_XS GGUF | llama.cpp DSA fork | TBD | untested | pending measurement |
 | Max quality | UD-IQ4_XS GGUF | llama.cpp DSA fork | TBD | untested | pending measurement |
 
@@ -67,7 +67,7 @@ results/.
 
 ## Limits
 
-Single node, three-card only; small-sample quality gate (not a leaderboard);
+Single node, four-card only; small-sample quality gate (not a leaderboard);
 CMP 170HX is a compute accelerator with passive cooling — results may not
 transfer to graphics cards; all quality scores are local and task-specific;
 GGUF is third-party-verified (tested in place, not mirrored or modified).

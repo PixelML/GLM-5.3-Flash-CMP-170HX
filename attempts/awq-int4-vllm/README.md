@@ -23,11 +23,17 @@ Date: 2026-08-30
 
 Arithmetic, from the measured byte total:
 
-- TP=3 (one shard of the model per card): 212,721,952,636 / 3 = 70,907,317,545 B
-  = **66.04 GiB per card**.
+- Three-card era, TP=3: 212,721,952,636 / 3 = 70,907,317,545 B = **66.04 GiB per
+  card** — 2.04 GiB over budget; this is what failed the attempt on 2026-08-30.
+- Current four-card node, TP=4: 212,721,952,636 / 4 = 53,180,488,159 B = **49.53
+  GiB per card** — fits the 64 GiB budget with ~14.5 GiB/card headroom before
+  context/KV. The size blocker is cleared by the topology change; the runtime
+  blocker (no `glm5_next` in upstream vLLM) is unchanged.
 - Per-card budget: 64 GiB = 68,719,476,736 B.
-- **Margin: -2.04 GiB before CUDA context (~0.5-1 GiB), activations, or any KV
-  cache.** The checkpoint cannot serve even a single token.
+- **Three-card margin: -2.04 GiB before CUDA context (~0.5-1 GiB),
+  activations, or any KV cache.** The checkpoint could not serve even a single
+  token on the 3 x 64 GiB node. On the current 4 x 64 GiB node the margin is
+  +14.5 GiB/card, but the runtime blocker below still applies.
 - Pipeline parallelism does not rescue this: PP splits are layer-wise, not
   byte-proportional, and the dense first stage (embedding + visual tower +
   early blocks) is over budget on its own.
@@ -37,13 +43,15 @@ Arithmetic, from the measured byte total:
 
 ## Execution status and outcome
 
-Not executed. Killed by arithmetic before download: the checkpoint is 6.1 GiB
-too large in total for 192 GiB of aggregate VRAM, before any overhead.
+Not executed. Killed by arithmetic before download on the three-card node: the
+checkpoint was 6.1 GiB too large in total for 192 GiB of aggregate VRAM, before
+any overhead. The current four-card node (256 GiB aggregate) has room for it;
+the attempt remains blocked on runtime support, not size.
 
 ## Blocker
 
-Static fit. This is a checkpoint-size problem, not a runtime problem — it would
-remain blocked even after upstream vLLM gains `glm5_next` support.
+Static fit on the three-card node (historical). On the four-card node the
+binding blocker is the missing `glm5_next` runtime support, not size.
 
 ## Evidence
 
@@ -56,10 +64,10 @@ remain blocked even after upstream vLLM gains `glm5_next` support.
 Blocked until a checkpoint meeting the budget exists. When one does, use this
 methodology (usage-token-counted, per the club's evidence rules):
 
-1. Environment: three-card CMP node, 180 W per-card policy, forced airflow,
+1. Environment: four-card CMP node, 180 W per-card policy, forced airflow,
    driver/kernel pins from the club baseline, weights staged in shared model
    storage only.
-2. Serve with TP=3, conservative context first (e.g. 8192), then raise.
+2. Serve with TP=4, conservative context first (e.g. 8192), then raise.
 3. Bench harness: streaming with `include_usage: true`, derive decode tokens
    from the final usage object's `completion_tokens` — never SSE event counts.
    Fixed-output 256- and 900-token single-stream runs; prefill at ~1K/4K/16K

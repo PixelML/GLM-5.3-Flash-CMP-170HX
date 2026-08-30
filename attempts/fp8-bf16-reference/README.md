@@ -13,8 +13,9 @@ Date: 2026-08-30
 
 ## Runtime / SM80 / fit
 
-Moot on memory grounds: at TP=3 these need ~165+ GiB per card against a 64 GiB
-physical budget. No fit calculation beyond that is meaningful.
+Moot on memory grounds: even at TP=4 these need ~76+ GiB per card (FP8; BF16
+larger) against a 64 GiB physical budget. No fit calculation beyond that is
+meaningful at either the three- or four-card topology.
 
 ## Execution status and outcome
 
@@ -22,7 +23,8 @@ Not executed. Size alone rules the node out.
 
 ## Blocker
 
-Static fit, by a factor of ~2.6x per card even before overhead.
+Static fit, by a factor of ~1.2x per card at TP=4 (~2.6x at the three-card
+TP=3 era) even before overhead.
 
 ## Evidence
 

@@ -48,12 +48,13 @@ Per delegation: no SM121-only kernel, `fp8_ds_mla` assumption, CX7 topology,
 CUDA-13 image, or overlay patch is ported unless a source-level review proves
 an Ampere-compatible component. No such component was identified in this pass.
 
-## Feasibility on the three-card CMP node (arithmetic, not measured)
+## Feasibility on the CMP node (arithmetic, not measured)
 
-- 176 GB installed / 3 cards = ~58.7 GB/card = ~54.6 GiB/card at a perfect
-  weight balance. Identical 64 GiB cards leave ~9 GiB/card for CUDA context,
-  activations, and KV before imbalance — the tightest fit of any candidate so
-  far, and routed-expert byte skew across TP ranks is unverified.
+- Four-card node (current), TP=4: 176 GB installed / 4 = ~44 GB/card = ~40.9
+  GiB/card at a perfect weight balance, leaving ~23 GiB/card for CUDA context,
+  activations, and KV before imbalance. (Three-card era, TP=3: ~54.6 GiB/card,
+  ~9 GiB/card headroom — the tightest fit of any candidate at the time.)
+  Routed-expert byte skew across TP ranks is unverified at either topology.
 - The runtime stack (not the arithmetic) is the binding blocker; see
   [EXL3 4 bpw attempt](../exl3-tr3-4bpw-exllamav3/README.md).
 

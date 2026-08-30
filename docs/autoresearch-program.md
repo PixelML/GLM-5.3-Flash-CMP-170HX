@@ -7,16 +7,16 @@ Paths are parameterized; fill the two environment values before starting.
 
 ## Current state (READ THIS FIRST)
 
-The three-card node may be occupied by an **unrelated live serving workload**.
+The four-card node may be occupied by an **unrelated live serving workload**.
 You MUST NOT kill, signal, or interfere with any process you did not start, and
 you must not load your model while another workload holds the cards. First job:
-WAIT — poll GPU memory every 10 minutes; when all 3 GPUs report <2 GiB used,
+WAIT — poll GPU memory every 10 minutes; when all 4 GPUs report <2 GiB used,
 run bench/preflight.sh and proceed only on PASS.
 
 ## Objective
 
 Maximize sustained single-stream decode throughput (256-token generations,
-temperature 0, seed 42) for GLM-5.3-Flash GGUF UD-IQ4_XS on 3x CMP 170HX
+temperature 0, seed 42) for GLM-5.3-Flash GGUF UD-IQ4_XS on 4x CMP 170HX
 (SM80, 64 GiB each). Metric: median tok/s over 3 measured runs after 1 warmup,
 tokens from the final usage object. Quality floor: >=90% pass on
 bench/eval.py tuning buckets. Safety: stop at 80 C core / 85 C memory / any

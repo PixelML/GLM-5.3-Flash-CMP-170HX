@@ -20,8 +20,10 @@ Date: 2026-08-30
 
 ## Static fit calculation
 
-~194.4 GiB across 3 cards at TP=3 = ~64.8 GiB/card before CUDA context,
-activations, or KV. Over the 64 GiB per-card budget even if a runtime existed.
+~194.4 GiB across 4 cards at TP=4 = ~48.6 GiB/card before CUDA context,
+activations, or KV — fits on paper on the current 4-card node. (The three-card
+era fit was ~64.8 GiB/card at TP=3, over budget.) The runtime incompatibility
+is unchanged and remains the blocker.
 (Fit number inferred from community-reported size; per-card arithmetic is exact.)
 
 ## Execution status and outcome
@@ -47,6 +49,6 @@ open, unmerged, and SM90+ only.
 ## Re-run instructions
 
 Blocked until upstream lands an SM80-capable `glm5_next` backend. Once it
-does: serve this checkpoint with TP=3 across the three-card node, 180 W power
+does: serve this checkpoint with TP=4 across the four-card node, 180 W power
 policy, forced airflow, stop at 80 C core / 85 C memory, abort on any Xid, and
 measure per the [AWQ attempt's methodology section](../awq-int4-vllm/README.md#re-run-instructions).

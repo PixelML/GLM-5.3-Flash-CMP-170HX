@@ -1,4 +1,4 @@
-# Decode-speed experiment plan — UD-IQ4_XS llama.cpp on the three-card CMP node
+# Decode-speed experiment plan — UD-IQ4_XS llama.cpp on the four-card CMP node
 
 Pin: unslothai/llama.cpp @ `00699716c275498ff84d71e329178fe21cba56a6`
 (verified: local clone HEAD, 2026-08-30). Point `LLAMA_SERVER` at the built
@@ -11,7 +11,7 @@ config is declared final.
 ## Preconditions (bench/preflight.sh, read-only)
 
 1. No vLLM workload on the GPUs (if present: stop, report, wait — never kill).
-2. >=50000 MiB free VRAM per card (weights are ~48.7 GiB/card at an even 3-way
+2. >=36000 MiB free VRAM per card (weights are ~36.5 GiB/card at an even 4-way
    split of the measured 146.05 GiB total, plus context/KV headroom).
 3. 5/5 GGUF shards staged, each >1 GiB.
 4. Port 8199 free, binary executable.

@@ -5,11 +5,12 @@ Date: 2026-08-30
 
 ## What would qualify
 
-A W4A16/AWQ/GPTQ-class quant whose **exact blob total is <= ~165 GiB**
-(55 GiB x 3 cards), leaving per-card room for CUDA context, activations, and a
-usable KV pool at TP=3. Practically: a true 3-bit quant of GLM-5.3-Flash, or a
-4-bit quant with enough expert-layer exclusions to shave ~17% off the current
-198.1 GiB AWQ total.
+A W4A16/AWQ/GPTQ-class quant whose **exact blob total is <= ~220 GiB**
+(55 GiB x 4 cards), leaving per-card room for CUDA context, activations, and a
+usable KV pool at TP=4. Practically: a true 3-bit quant of GLM-5.3-Flash, or a
+4-bit quant with expert-layer exclusions. Note the current 198.1 GiB AWQ
+checkpoint already fits the four-card budget on paper (49.5 GiB/card); its
+blocker is runtime support, not size.
 
 ## Search performed
 
