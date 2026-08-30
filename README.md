@@ -53,14 +53,18 @@ The two blockers that killed every early attempt are resolved on paper as of
    4 bpw (163.58 GiB measured) and AWQ INT4 (198.1 GiB measured) also fit on
    paper at TP=4.
 
-**Measured validation is still pending.** The GGUF pairing is the primary
-candidate (staged, not yet served); the guest entered a maintenance state
-before serving could start. All earlier failed attempts remain recorded below.
-
-Re-run the benchmark methodology in
-[attempts/awq-int4-vllm/README.md](attempts/awq-int4-vllm/README.md) once either
-blocker is resolved; the usage-token-counted harness design there is portable to
-any future candidate.
+**Measured validation (Phase C, 2026-08-30, four-card node):** the GGUF pairing
+served successfully. The UD-IQ4_XS GGUF on the sm_80 llama.cpp fork reached
+17.73 tok/s median single-stream (5 reps), 17.71 tok/s aggregate at concurrency
+4, with a 41-repetition soak completing cleanly. The 26-task evaluation scored
+16/26 overall (math 8/8, instruction 4/5, coding 0/3, long-context 0/3) and
+4/7 held out. Full receipt, per-request data, charts, and rebench entry:
+[results/summary.json](results/summary.json),
+[results/summary.csv](results/summary.csv),
+[results/charts/](results/charts/),
+[bench/rebench.sh](bench/rebench.sh). The EXL3/TR3, AWQ, NVFP4, and FP8/BF16
+rows above remain blocked as recorded; all failed attempts stay in this
+repository as history.
 
 ## License
 
