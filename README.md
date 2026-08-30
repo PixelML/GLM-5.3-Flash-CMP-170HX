@@ -40,8 +40,16 @@ context (~0.5-1 GiB), activations, and KV cache.
    (measured 2026-08-30), and the only known support PR
    ([vllm#53906](https://github.com/vllm-project/vllm/pull/53906)) is open,
    unmerged, and targets SM90+.
-2. No checkpoint that fits: the smallest public quant is 198.1 GiB — over the
-   192 GiB total VRAM of the three-card node before any runtime overhead.
+2. No runnable checkpoint/runtime combination:
+   - (a) The only public quant found that statically fits is EXL3/TR3 4 bpw at
+     163.58 GiB (measured bytes, HF API blob sizes) — 54.53 GiB/card at TP=3,
+     ~9.47 GiB/card headroom before overhead (fit inferred) — but no
+     SM80-compatible runtime exists for it, because its kernels ship
+     SM121-only and runtime/overhead feasibility on SM80 is untested.
+   - (b) All quants with an SM80-capable runtime path — NVFP4, AWQ INT4,
+     FP8/BF16 — either cannot fit the node's 192 GiB total VRAM or lack
+     runtime support; AWQ INT4 at 198.1 GiB (measured) is over the node total
+     before any runtime overhead.
 
 Attempt records for each row will be published here as they are completed;
 the usage-token-counted harness design is portable to any future candidate.
