@@ -43,6 +43,12 @@ def extract_code_fences(text):
     return re.findall(r"```(?:python)?\n(.*?)```", text, re.DOTALL)
 
 
+# Completion-budget margin for models that emit reasoning_content before the
+# final answer channel. Applied on top of the 512-token ceiling for buckets
+# whose outputs are long enough that reasoning overhead can starve them.
+REASONING_MARGIN = 512
+
+
 # ---------- MATH (GSM8K-style public subset; deterministic exact match) ------
 MATH_TASKS = [
     # (question, gold_answer) — verified public-domain arithmetic/reasoning
@@ -205,7 +211,9 @@ def coding_eval(base):
     results = []
     for prompt, harness in CODING_TASKS:
         try:
-            out, usage, dt = call(base, [{"role": "user", "content": prompt}], max_tokens=512)
+            # This model family spends part of the budget on reasoning_content
+            # before answer content; coding needs headroom for the full program.
+            out, usage, dt = call(base, [{"role": "user", "content": prompt}], max_tokens=512 + REASONING_MARGIN)
             ok, detail = _run_coding_task(out, harness)
             results.append({"bucket": "coding", "task": harness.split("\n")[0][:40], "ok": bool(ok), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2), "detail": detail})
         except Exception as e:
@@ -297,7 +305,8 @@ def needle_task(base, ctx_tokens_approx=2000, position_fraction=0.5):
     post = "\n".join(SENTENCE for _ in range(post_reps))
     q = f"{pre}\n\n{needle}\n\n{post}\n\nWhat is the access code for vault {ctx_tokens_approx}? Answer with the code only."
     try:
-        out, usage, dt = call(base, [{"role": "user", "content": q}], max_tokens=64)
+        # Reasoning tokens precede the needle answer (see REASONING_MARGIN).
+        out, usage, dt = call(base, [{"role": "user", "content": q}], max_tokens=512 + REASONING_MARGIN)
         ok = "ZX-Q7-1943" in out
         return [{"bucket": "longctx", "task": f"needle@{ctx_tokens_approx}:pos{position_fraction}", "ok": bool(ok), "prompt_tokens": usage.get("prompt_tokens"), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2)}]
     except Exception as e:

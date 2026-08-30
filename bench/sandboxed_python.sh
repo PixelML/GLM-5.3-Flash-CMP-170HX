@@ -30,6 +30,6 @@ exec chroot /mnt /bin/sh -c "
   cd /tmp
   ulimit -t 20
   ulimit -v 524288
- exec python3 -I -B /tmp/harness.py
+ exec python3 -B /tmp/harness.py
 "
-' runner "$FILE"
+' runner "$FILE" "${2:-}"
