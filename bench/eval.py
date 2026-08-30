@@ -46,7 +46,7 @@ def extract_code_fences(text):
 # Completion-budget margin for models that emit reasoning_content before the
 # final answer channel. Applied on top of the 512-token ceiling for buckets
 # whose outputs are long enough that reasoning overhead can starve them.
-REASONING_MARGIN = 512
+REASONING_MARGIN = 1536
 
 
 # ---------- MATH (GSM8K-style public subset; deterministic exact match) ------
@@ -275,7 +275,7 @@ def heldout_eval(base):
             results.append({"bucket": "heldout-instr", "task": q[:40], "ok": False, "err": str(e)[:200]})
     for prompt, harness in HELDOUT_CODE:
         try:
-            out, usage, dt = call(base, [{"role": "user", "content": prompt}], max_tokens=512)
+            out, usage, dt = call(base, [{"role": "user", "content": prompt}], max_tokens=512 + REASONING_MARGIN)
             ok, detail = _run_coding_task(out, harness)
             results.append({"bucket": "heldout-code", "task": harness.split("\n")[0][:40], "ok": bool(ok), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2), "detail": detail})
         except Exception as e:
