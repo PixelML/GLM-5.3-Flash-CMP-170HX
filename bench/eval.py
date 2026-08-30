@@ -108,6 +108,155 @@ def instruction_eval(base):
     return results
 
 
+# ---------- CODING (deterministic: model output is executed, pass/fail) -----
+# Each task: (prompt, harness_code). The harness defines test(harness) and is
+# run in a subprocess with a hard timeout; only its exit code and stdout are
+# inspected. No network, no file access outside a fresh temp dir (Python
+# subprocess runs with cwd=tmpdir; the code under test is passed as a string).
+CODING_TASKS = [
+    (
+        "Write a Python function is_balanced(s) that returns True if the "
+        "parentheses in the string s are balanced, False otherwise. Only "
+        " '(' and ')' matter. Answer with a single Python code block only.",
+        "from solution import is_balanced\n"
+        "assert is_balanced('') == True\n"
+        "assert is_balanced('()') == True\n"
+        "assert is_balanced('(())') == True\n"
+        "assert is_balanced('(()') == False\n"
+        "assert is_balanced('())') == False\n"
+        "assert is_balanced('a(b)c(d)e') == True\n"
+        "assert is_balanced(')(') == False\n"
+        "print('PASS')\n",
+    ),
+    (
+        "Write a Python function second_max(nums) that returns the second "
+        "largest distinct value in the list nums, or None if fewer than two "
+        "distinct values exist. Do not sort the full list with sorted() or "
+        ".sort(); use a single pass. Answer with a single Python code block only.",
+        "from solution import second_max\n"
+        "assert second_max([1, 3, 2]) == 2\n"
+        "assert second_max([5, 5, 4]) == 4\n"
+        "assert second_max([7]) is None\n"
+        "assert second_max([2, 2]) is None\n"
+        "assert second_max([-1, -5, -3]) == -3\n"
+        "assert second_max([10, 9, 8, 9]) == 9\n"
+        "print('PASS')\n",
+    ),
+    (
+        "Write a Python function flatten(d) that takes a dict whose values "
+        "may be nested dicts (arbitrary depth, string keys) and returns a "
+        "flat dict where nested keys are joined with dots, e.g. "
+        "{'a': {'b': 1}} -> {'a.b': 1}. Answer with a single Python code block only.",
+        "from solution import flatten\n"
+        "assert flatten({'a': 1}) == {'a': 1}\n"
+        "assert flatten({'a': {'b': 1}}) == {'a.b': 1}\n"
+        "assert flatten({'a': {'b': {'c': 3}}}) == {'a.b.c': 3}\n"
+        "assert flatten({'x': 1, 'y': {'z': 2}}) == {'x': 1, 'y.z': 2}\n"
+        "assert flatten({}) == {}\n"
+        "print('PASS')\n",
+    ),
+]
+
+
+def _run_coding_task(model_output, harness_code):
+    """Extract code from the model output, run the fixed test harness in a
+    subprocess. Returns (ok, detail). 25 s hard timeout; the harness only
+    asserts on pure functions and imports only the candidate solution."""
+    import os, re, subprocess, tempfile
+    # 'harness' here is the raw model output; extract the first fenced block
+    # if present, else use the whole output as the code.
+    fence = chr(96) * 3
+    m = re.search(fence + r"(?:python)?\s*\n(.*?)" + fence, model_output, re.S)
+    code = m.group(1) if m else model_output
+    with tempfile.TemporaryDirectory() as td:
+        sol = os.path.join(td, "solution.py")
+        test = os.path.join(td, "test_harness.py")
+        with open(sol, "w") as f:
+            f.write(code + "\n")
+        with open(test, "w") as f:
+            f.write(harness_code)
+        try:
+            r = subprocess.run(["python3", "test_harness.py"], cwd=td,
+                               capture_output=True, text=True, timeout=25)
+            return (r.returncode == 0 and "PASS" in r.stdout,
+                    (r.stdout + r.stderr)[-200:])
+        except subprocess.TimeoutExpired:
+            return False, "timeout"
+
+
+@task
+def coding_eval(base):
+    results = []
+    for prompt, harness in CODING_TASKS:
+        try:
+            out, usage, dt = call(base, [{"role": "user", "content": prompt}], max_tokens=512)
+            ok, detail = _run_coding_task(out, harness)
+            results.append({"bucket": "coding", "task": harness.split("\n")[0][:40], "ok": bool(ok), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2), "detail": detail})
+        except Exception as e:
+            results.append({"bucket": "coding", "task": prompt[:40], "ok": False, "err": str(e)[:200]})
+    return results
+
+
+# ---------- HELD-OUT SET (never used for config tuning) ----------------------
+# Same task types as the tuning set above, disjoint instances. Per the
+# experiment plan, config keep/discard decisions use only the tuning set;
+# the final recommended config is scored once here.
+HELDOUT_MATH = [
+    ("A printer produces 45 pages per minute. How many pages does it produce in 2 hours? Answer with the number only.", "5400"),
+    ("A cyclist rides 96 km in 4 hours. What is the average speed in km/h? Answer with the number only.", "24"),
+    ("A jacket costs $150 and is discounted by 30%. What is the sale price in dollars? Answer with the number only.", "105"),
+    ("Compute 13 * 17 - 121. Answer with the number only.", "100"),
+]
+
+HELDOUT_INSTR = [
+    ("Write exactly 2 sentences about rivers. Separate them with newlines.", lambda t: len([l for l in t.strip().split("\n") if l.strip()]) == 2),
+    ("Reply with only the word NO if 9 is prime, or YES otherwise.", lambda t: t.strip().upper() == "NO"),
+]
+
+HELDOUT_CODE = [
+    (
+        "Write a Python function count_vowels(s) that returns the number of "
+        "vowels (a, e, i, o, u, case-insensitive) in the string s. Answer with "
+        "a single Python code block only.",
+        "from solution import count_vowels\n"
+        "assert count_vowels('hello') == 2\n"
+        "assert count_vowels('WORLD') == 1\n"
+        "assert count_vowels('xyz') == 0\n"
+        "assert count_vowels('') == 0\n"
+        "assert count_vowels('AeiOu') == 5\n"
+        "print('PASS')\n",
+    ),
+]
+
+
+@task
+def heldout_eval(base):
+    results = []
+    for q, gold in HELDOUT_MATH:
+        try:
+            out, usage, dt = call(base, [{"role": "user", "content": q}])
+            pred = extract_boxed(out) or re.search(r"-?\d+(?:\.\d+)?", out.split("\n")[-1])
+            pred_val = pred if isinstance(pred, str) else (pred.group() if pred else None)
+            ok = pred_val is not None and abs(float(pred_val.replace(",", "")) - float(gold)) < 1e-4
+            results.append({"bucket": "heldout-math", "task": q[:40], "ok": bool(ok), "gold": gold, "pred": pred_val, "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2)})
+        except Exception as e:
+            results.append({"bucket": "heldout-math", "task": q[:40], "ok": False, "err": str(e)[:200]})
+    for q, check in HELDOUT_INSTR:
+        try:
+            out, usage, dt = call(base, [{"role": "user", "content": q}], max_tokens=256)
+            results.append({"bucket": "heldout-instr", "task": q[:40], "ok": bool(check(out)), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2)})
+        except Exception as e:
+            results.append({"bucket": "heldout-instr", "task": q[:40], "ok": False, "err": str(e)[:200]})
+    for prompt, harness in HELDOUT_CODE:
+        try:
+            out, usage, dt = call(base, [{"role": "user", "content": prompt}], max_tokens=512)
+            ok, detail = _run_coding_task(out, harness)
+            results.append({"bucket": "heldout-code", "task": harness.split("\n")[0][:40], "ok": bool(ok), "tokens": usage.get("completion_tokens"), "latency_s": round(dt, 2), "detail": detail})
+        except Exception as e:
+            results.append({"bucket": "heldout-code", "task": prompt[:40], "ok": False, "err": str(e)[:200]})
+    return results
+
+
 # ---------- LONG-CONTEXT RETRIEVAL (synthetic needle, deterministic) --------
 def needle_task(base, ctx_tokens_approx=2000):
     needle = f"The access code for vault {ctx_tokens_approx} is ZX-Q7-1943."
@@ -126,13 +275,15 @@ def longctx_eval(base):
     return needle_task(base, 2000) + needle_task(base, 4000) + needle_task(base, 8000)
 
 
-BUCKETS = {"math": math_eval, "instruction": instruction_eval, "longctx": longctx_eval}
+BUCKETS = {"math": math_eval, "instruction": instruction_eval,
+           "coding": coding_eval, "heldout": heldout_eval,
+           "longctx": longctx_eval}
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8199")
-    ap.add_argument("--buckets", default="math,instruction,longctx")
+    ap.add_argument("--buckets", default="math,instruction,coding,longctx")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     all_results = []
