@@ -7,7 +7,11 @@ Date: 2026-08-30
 
 - [Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw](https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw) @ `25a44fdbf16862a46b7cc9921142c6c81350af2f`
   (byte-identical mirror of brandonmusic snapshot `5ab363a8`)
-- ~171.8 GiB download / ~176 GB installed, 120 shards (community-reported, from the EXL3 recipe documentation)
+- Size: 175,642,157,752 bytes = 175.64 GB = 163.58 GiB across 120 shards
+  (measured: Hugging Face API blob-size sum at the pinned revision, checked
+  2026-08-30). Earlier "~171.8 GiB / ~176 GB installed" in this file and the
+  root README was a unit-conversion error against that same byte total; the
+  static-fit paragraph below now uses the corrected total.
 - EXL3/TR3 4 bpw, uniform K4 group codebooks, routed experts only
 - License: ShapleyMCG License 1.0 (source-available) — check redistribution terms before mirroring
 
@@ -23,8 +27,9 @@ Date: 2026-08-30
 
 ## Static fit calculation
 
-- 176 GB installed / 3 cards = ~58.7 GB/card = ~54.6 GiB/card if perfectly
-  weight-balanced at TP=3 (community-reported size, arithmetic exact).
+- 175.64 GB installed / 3 cards = ~58.55 GB/card = ~54.52 GiB/card if
+  perfectly weight-balanced at TP=3 (measured HF blob sum at the pinned rev,
+  arithmetic exact; expert-layout skew remains unverified).
 - On paper this leaves ~9 GiB/card for CUDA context + KV — the only candidate
   that is even arguable on memory. BUT: routed experts dominate the byte count,
   and TP=3 weight balance is not guaranteed for expert layouts; treat the fit as
@@ -48,7 +53,10 @@ checkpoint itself is the closest thing to viable; the software around it is not.
 
 ## Evidence
 
-- Quant capability gate: DGX repository, `exl3/overlay/exl3.py` (commit `bd7f55e` audited pin)
+- Quant capability gate: DGX repository, `exl3/overlay/exl3.py` — audited via
+  the repository's `exl3/overlay/exl3.py` file at the commit referenced in its
+  README at the time of review; the short git sha recorded earlier here could
+  not be resolved upstream, so no abbreviated pin is reproduced as provenance.
 - Size and shard layout: EXL3 recipe documentation in the DGX repository
 - Upstream ExLlamaV3 targets Ampere+ (community-reported)
 

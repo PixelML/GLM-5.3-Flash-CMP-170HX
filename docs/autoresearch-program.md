@@ -36,7 +36,8 @@ Xid / GPU loss.
 
 ## Fixed (never change in the loop)
 
-- Checkpoint, quantization, runtime fork and pin (see attempts/gguf-ud-iq4xs-llamacpp/README.md)
+- Checkpoint, quantization, runtime fork and pin (see
+  [attempts/gguf-ud-iq4xs-llamacpp/README.md](../../attempts/gguf-ud-iq4xs-llamacpp/README.md))
 - Hardware, power limits, clocks, drivers, storage layout
 - Measurement protocol: 1 warmup + 3 runs, 256 tokens, final-usage accounting
 - Quality gate: bench/eval.py buckets before any config is declared final
@@ -64,4 +65,3 @@ Xid / GPU loss.
 
 Best-config table, tok/s trace per experiment, failed configs with error text,
 thermal envelope, and the quality floor result for the final config.
-

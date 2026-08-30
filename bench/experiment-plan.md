@@ -1,7 +1,8 @@
 # Decode-speed experiment plan — UD-IQ4_XS llama.cpp on the three-card CMP node
 
 Pin: unslothai/llama.cpp @ `00699716c275498ff84d71e329178fe21cba56a6`
-(verified: local clone HEAD, 2026-08-30). Binary: `/tmp/build-llamacpp/bin/llama-server`.
+(verified: local clone HEAD, 2026-08-30). Point `LLAMA_SERVER` at the built
+`llama-server` binary; the path is node-local and not part of the recipe.
 Metric: median tok/s of 3 measured runs after 1 warmup, single stream, 256-token
 generations, temperature 0, seed 42; tokens taken from the final usage object
 (measure.py already does this). Quality gate: >=90% pass on eval.py before any
@@ -19,9 +20,9 @@ config is declared final.
 
 | # | Factor | Variants | Rationale / prior expectation |
 |---|--------|----------|-------------------------------|
-| 0 | Baseline | serve.sh defaults: mmap, layer split, tsplit 1,1,1, threads 8, ctx 16384, parallel 1, flash-attn per binary default (read from server startup log — record it) | reference point; also fixes the exact prompt-token count from the first usage object (prompt-1k.txt is ~1K tokens by construction, untokenized — do not claim an exact count) |
+| 0 | Baseline | serve.sh defaults: mmap, layer split, tensor-split 1,1,1 (equal ratios, documented default), threads 8, ctx 16384, parallel 1, flash-attn per binary default (read from server startup log — record it) | reference point; also fixes the exact prompt-token count from the first usage object (prompt-1k.txt is ~1K tokens by construction, untokenized — do not claim an exact count) |
 | 1 | --split-mode | row vs layer | MoE decode is weight-bandwidth-bound; row (tensor) split reads each weight once across cards instead of keeping whole layers per card. Community-reported as often faster for MoE when per-layer weights exceed per-card bandwidth benefit; label community-reported until measured here |
-| 2 | --tensor-split | 1,1,1 vs proportional-to-free-VRAM | cards are identical 64 GiB SKUs, so 1,1,1 is expected near-optimal; cheap A/B |
+| 2 | --tensor-split | 1,1,1 (default) vs proportional-to-free-VRAM | cards are identical 64 GiB SKUs, so equal ratios are expected near-optimal; cheap A/B |
 | 3 | --flash-attn | on vs off | affects KV-path FLOPs and, for some quantized KV types, is required; decode effect expected small at 16K ctx but measure |
 | 4 | --cache-type-k / -v | f16 vs q8_0 (then q4_0) | KV is small for this MLA-style architecture (est. 2–4 GiB at 16K, untested); expect minor effect. If the fork rejects quantized KV for this arch, record as untested with the server's error text |
 | 5 | --threads | 4, 8, 12, 16 | decode is GPU-bound with all layers offloaded; expect flat. Cheap sweep |
@@ -52,7 +53,7 @@ config is declared final.
 
 This loop follows the [karpathy/autoresearch](https://github.com/karpathy/autoresearch)
 design (README @ HEAD, checked 2026-08-30): a human/agent-written program file
-(here `/tmp/program-glm-bench.md` driving the Pi worker, mirroring its
+(a controller-local program file driving the Pi worker, mirroring autoresearch's
 `program.md`), a fixed per-experiment protocol budget (here 1 warmup + 3
 measured 256-token runs instead of its fixed 5-minute train budget, so configs
 stay comparable), a single primary metric (median single-stream tok/s, the

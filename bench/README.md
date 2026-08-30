@@ -6,6 +6,9 @@ One-command entry point for the UD-IQ4_XS llama.cpp attempt.
 
 1. `llama-server` built from unslothai/llama.cpp @ `00699716c275498ff84d71e329178fe21cba56a6` with `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=80`.
 2. 5 GGUF shards staged in a directory (not committed here).
+3. Python deps: Python 3.10+ and `aiohttp` (`pip install aiohttp` or
+   `uv pip install aiohttp`). `measure.py` imports it; `eval.py` uses only
+   the standard library.
 
 ## Run
 

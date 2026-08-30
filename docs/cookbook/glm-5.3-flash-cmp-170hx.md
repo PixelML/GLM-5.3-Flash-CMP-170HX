@@ -35,8 +35,10 @@ Expected ready signal: \`ok: 5/5 shards staged\` then \`preflight: PASS\`, then
 
 ## Why these settings
 
-Explained in bench/experiment-plan.md (factor order and rationale) and
-attempts/gguf-ud-iq4xs-llamacpp/README.md (static fit, mmap arithmetic).
+Explained in [bench/experiment-plan.md](../../bench/experiment-plan.md)
+(factor order and rationale) and
+[attempts/gguf-ud-iq4xs-llamacpp/README.md](../../attempts/gguf-ud-iq4xs-llamacpp/README.md)
+(static fit, mmap arithmetic).
 Flags are added one at a time; nothing above is asserted to be optimal.
 
 ## Results
@@ -49,12 +51,12 @@ Pareto frontier — all regenerated from results/summary.csv by bench/charts.py.
 ## What failed (so far)
 
 Five earlier attempts are recorded with evidence:
-[NVFP4+vLLM](../attempts/nvfp4-vllm-sm121/README.md) (no SM80 runtime),
-[EXL3/TR3 4bpw](../attempts/exl3-tr3-4bpw-exllamav3/README.md) (no SM80 ExLlamaV3),
-[AWQ-INT4](../attempts/awq-int4-vllm/README.md) (does not fit),
-[FP8/BF16](../attempts/fp8-bf16-reference/README.md) (does not fit),
-and [EXL3 3.0bpw](../attempts/exl3-3bpw-0xsero/README.md) (quantization artifact
-with no serving runtime). These shaped the current candidate.
+[NVFP4+vLLM](../../attempts/nvfp4-vllm-sm121/README.md) (no SM80 runtime),
+[EXL3/TR3 4bpw](../../attempts/exl3-tr3-4bpw-exllamav3/README.md) (no SM80 ExLlamaV3),
+[AWQ-INT4](../../attempts/awq-int4-vllm/README.md) (does not fit),
+[FP8/BF16](../../attempts/fp8-bf16-reference/README.md) (does not fit),
+and [EXL3 3.0bpw](../../attempts/exl3-3bpw-0xsero/README.md) (quantization
+artifact with no serving runtime). These shaped the current candidate.
 
 ## Reproduce the evaluation
 
@@ -76,4 +78,3 @@ GGUF is third-party-verified (tested in place, not mirrored or modified).
 - Detailed GitHub repository: this repository
 - Hardware club guidance: pending (two-PR rule; opens after measured results)
 - Release manifest: releases/manifest.draft.json (draft, no-claim-ready)
-

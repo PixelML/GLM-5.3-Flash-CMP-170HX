@@ -1,6 +1,6 @@
 # Attempt — GGUF UD-IQ4_XS on llama.cpp (DSA branch)
 
-Status: in-progress (weights staging, runtime building)
+Status: staged/in-progress (checkpoint staging observed, not served)
 Date: 2026-08-30
 
 ## Checkpoint
@@ -29,24 +29,23 @@ Date: 2026-08-30
 
 ## Execution status and outcome
 
-Blocked before first serve (2026-08-30). Runtime is built and verified
-(pinned commit checked out clean; sm_80 binary present). Weights staging is
-in progress: at 2026-08-30T05:08Z only 2 of 5 shards were staged and one was
-actively growing (measured ~22.5 of ~29 GiB). No serving or measurement has
-happened yet. This record will be updated with measured load time, TTFT,
-throughput, and thermals once the model is served.
+Blocked before first serve (2026-08-30). Runtime build is verified from the
+source review (pinned fork; `sm_80` build flag documented by the fork; not
+independently rebuilt here). Checkpoint staging is in progress: 4 of 5 shards
+were present at the time of the last read-only check (128 GiB of the
+measured 146.05 GiB total), with the fifth shard absent. No serving or
+measurement has happened yet. This record will be updated with measured load
+time, TTFT, throughput, and thermals once the model is served.
 
 ## Blocker
 
-**GPU contention (measured, 2026-08-30T05:07Z):** the three-card node is
-occupied by another workload — a vLLM server in pipeline-parallel mode across
-all three cards (three worker processes, started ~02:47 local, root-owned,
-serving a different model with speculative decoding). Free VRAM measured
-~6.0 / 7.3 / 1.3 GiB per card against ~48.7 GiB/card needed for an even
-3-way weight split. Per safety rules the workload is left untouched (never
-kill processes we did not start); the attempt waits until the cards free up.
-The two blockers that killed every earlier attempt (no fitting quant, no
-SM80 runtime for the architecture) still clear with this pairing.
+**GPU contention (measured):** the node is occupied by another workload that
+holds all cards; per safety rules it is left untouched (never kill processes
+we did not start). Free VRAM at the time of the last read-only check was far
+below the ~48.7 GiB/card needed for an even 3-way weight split. The attempt
+waits until the cards free up. The two blockers that killed every earlier
+attempt (no fitting quant, no SM80 runtime for the architecture) still clear
+with this pairing.
 
 **Secondary (inferred, static arithmetic):** `--no-mmap` serving is infeasible
 on this host — 146.05 GiB weights (measured HF blob sum) vs 94 GiB host RAM
