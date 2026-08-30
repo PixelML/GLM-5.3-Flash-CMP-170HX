@@ -43,8 +43,9 @@ Flags are added one at a time; nothing above is asserted to be optimal.
 
 ## Results
 
-First measured baseline (phase C, concurrency 1, 400-token prompt /
-256-token completion, c=1 median of 5): 17.73 tok/s aggregate decode,
+First measured baseline (phase C, 2026-08-30; 400-token prompt /
+256-token completion, c=1 median of 5, n=5, single-run small-sample
+gate, medians reported): 17.73 tok/s aggregate decode,
 14.44 s end-to-end per task. Aggregate throughput is ~flat across the
 1/2/4 concurrency ladder (compute-bound); a 20-minute soak at c=2 held
 17.5-17.7 tok/s with no throttling.
