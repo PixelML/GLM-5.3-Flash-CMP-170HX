@@ -34,10 +34,17 @@ cfg="split=${SPLIT:-layer};ts=${TSPLIT};th=${THREADS:-8};par=${PARALLEL:-1};ctx=
 echo "== [${NAME}] serving (log: ${LOG}) =="
 bench/serve.sh > "$LOG" 2>&1 &
 SERVER_PID=$!
-cleanup() { kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; }
-trap cleanup EXIT
 STOPFILE="${STOPFILE:-results/.thermal-stop-$$}"
-touch "$STOPFILE"
+rm -f "$STOPFILE"
+WATCHER_PID=""
+cleanup() {
+  kill "$SERVER_PID" 2>/dev/null || true
+  touch "$STOPFILE"
+  [ -z "$WATCHER_PID" ] || wait "$WATCHER_PID" 2>/dev/null || true
+  wait "$SERVER_PID" 2>/dev/null || true
+  rm -f "$STOPFILE"
+}
+trap cleanup EXIT
 WATCH_PID="$SERVER_PID" bench/thermal-guard.sh --watch "$STOPFILE" &
 WATCHER_PID=$!
 cleanup() {
@@ -98,6 +105,7 @@ tc=$( echo "$snapshot" | python3 -c "import json,sys; d=json.load(sys.stdin); pr
 tm=$( echo "$snapshot" | python3 -c "import json,sys; d=json.load(sys.stdin); print(';'.join(r['temp_mem_c'] for r in d))")
 pw=$( echo "$snapshot" | python3 -c "import json,sys; d=json.load(sys.stdin); print(';'.join(r['power_w'] for r in d))")
 
-echo "${cfg},${med},${ttft},${p50},${p95},${mem},${tc},${tm},${pw},measured" >> results/experiments.csv
+quality_log="${QUALITY_LOG:-results/quality-${NAME}.jsonl}"
+echo "${cfg},${med},${ttft},${p50},${p95},${mem},${tc},${tm},${pw},${quality_log},measured" >> results/experiments.csv
 echo "== [${NAME}] median ${med} tok/s over 3 runs (~${tok} gen tokens/run), ttft ${ttft} ms  (cfg: ${cfg}) =="
 echo "== [${NAME}] stopping server (pid ${SERVER_PID}); trap cleans up =="

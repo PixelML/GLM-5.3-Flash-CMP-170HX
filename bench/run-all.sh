@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# One-command baseline: serve + speed sweep + quality eval + GPU snapshot.
-# Safety: abort at 80 °C core / 85 °C memory / any Xid. Stop the server when done.
-#!/usr/bin/env bash
 # One-command baseline: preflight -> serve (bounded health wait) -> thermal
 # guard -> speed sweep -> quality eval -> GPU snapshot -> manifest -> stop.
 # The server stopped is always the one started here; there is no auto-trigger.
@@ -28,10 +25,17 @@ bench/preflight.sh
 echo "== serving (log: ${LOG}) =="
 bench/serve.sh > "$LOG" 2>&1 &
 SERVER_PID=$!
-cleanup() { kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; }
-trap cleanup EXIT
 STOPFILE="${STOPFILE:-results/.thermal-stop-$$}"
-touch "$STOPFILE"
+rm -f "$STOPFILE"
+WATCHER_PID=""
+cleanup() {
+  kill "$SERVER_PID" 2>/dev/null || true
+  touch "$STOPFILE"
+  [ -z "$WATCHER_PID" ] || wait "$WATCHER_PID" 2>/dev/null || true
+  wait "$SERVER_PID" 2>/dev/null || true
+  rm -f "$STOPFILE"
+}
+trap cleanup EXIT
 WATCH_PID="$SERVER_PID" bench/thermal-guard.sh --watch "$STOPFILE" &
 WATCHER_PID=$!
 cleanup() {
@@ -88,8 +92,14 @@ manifest = {
     "generated_unix": int(time.time()),
     "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
     "git_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
+    "git_remote": subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip(),
+    "branch": subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip(),
     "name": os.environ.get("NAME", "runall"),
     "model_dir": os.environ.get("MODEL_DIR", ""),
+    "model_file": os.environ.get("MODEL_FILE", "GLM-5.3-Flash-UD-IQ4_XS-00001-of-00005.gguf"),
+    "serve_cfg": {k: os.environ.get(k, "") for k in (
+        "PORT", "CTX", "SPLIT", "TSPLIT", "PARALLEL", "THREADS",
+        "FLASH_ATTN", "CACHE_K", "CACHE_V", "BATCH", "UBATCH", "NO_MMAP")},
     "speed_rows": len(rows),
     "quality_log": "results/quality-runall.log",
 }
