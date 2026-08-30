@@ -1,0 +1,2 @@
+config,median_tok_s,ttft_ms,itl_p50,itl_p95,mem_per_card_mib,temp_core,temp_mem,power_w,quality_log,decision
+phase63-ud-iq4xs-baseline,17.73,,,,,43,56,,results/phase63/quality-final2.jsonl,baseline-below-90pct-gate
