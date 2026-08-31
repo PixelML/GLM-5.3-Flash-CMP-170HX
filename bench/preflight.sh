@@ -85,7 +85,7 @@ else
   if [ ! -f "$MODEL_DIR/SHA256SUMS" ]; then
     echo "FAIL: SHA256SUMS not present in $MODEL_DIR (staging not marked complete)"
     fail=1
-  elif [ "${PREFLIGHT_HASH:-1}" = "0" ]; then
+  elif [ "${PREFLIGHT_HASH=1}" = "0" ]; then
     echo "WARN: PREFLIGHT_HASH=0; skipping sha256 verification (size checks only)"
   else
     if (cd "$MODEL_DIR" && sha256sum -c SHA256SUMS --quiet >/dev/null 2>&1); then
@@ -93,6 +93,16 @@ else
     else
       echo "FAIL: sha256 verification failed against SHA256SUMS"
       fail=1
+    fi
+  fi
+  # Upstream-fact cross-check: the staged manifest must match the committed
+  # expected-hash pin, or a self-consistent but wrong SHA256SUMS could pass.
+  if [ -f "$MODEL_DIR/SHA256SUMS" ]; then
+    if ! diff -q "$MODEL_DIR/SHA256SUMS" results/expected-sha256.txt >/dev/null 2>&1; then
+      echo "FAIL: staged SHA256SUMS differs from committed results/expected-sha256.txt pin"
+      fail=1
+    else
+      echo "ok: staged SHA256SUMS matches the committed expected-hash pin"
     fi
   fi
 fi

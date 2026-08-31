@@ -114,7 +114,8 @@ with open(identity_path) as f:
     identity = json.load(f)
 serve_cfg = {}
 for key in ("PORT", "CTX", "SPLIT", "TSPLIT", "PARALLEL", "THREADS",
-             "FLASH_ATTN", "CACHE_K", "CACHE_V", "BATCH", "UBATCH", "NO_MMAP"):
+             "FLASH_ATTN", "CACHE_K", "CACHE_V", "BATCH", "UBATCH", "NO_MMAP",
+             "MODEL_FILE"):
     serve_cfg[key] = os.environ.get(key, "default")
 gpu = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version",
                       "--format=csv,noheader"], capture_output=True, text=True)
@@ -145,11 +146,16 @@ manifest = {
     },
     "model": {
         "checkpoint": "unsloth/GLM-5.3-Flash-GGUF UD-IQ4_XS",
+        "file": serve_cfg.get("MODEL_FILE", "default"),
         "upstream_revision": "2975ab414d30340466d8c51533c6e91f0cca64c1",
         "total_bytes": 156822111075,
         "shards": 5,
         "quant": "UD-IQ4_XS (dynamic 4-bit k-quant GGUF)",
-        "integrity": "sha256 verified against staged SHA256SUMS at preflight",
+        "integrity": {
+            "ran": os.environ.get("PREFLIGHT_HASH", "1") != "0",
+            "method": "sha256sum -c SHA256SUMS in the model directory; preflight also fails if the staged SHA256SUMS differs from the committed results/expected-sha256.txt pin",
+            "limitation": "SHA256SUMS is self-supplied by the staging process; the committed results/expected-sha256.txt pin is the upstream-fact cross-check",
+        },
     },
     "runtime": {
         "server": "llama-server (unslothai/llama.cpp fork)",
@@ -179,16 +185,16 @@ manifest = {
         "temperature": 0.0,
         "max_tokens": {
             "speed_warmup_c1_ladder_soak": 256,
-            "quality_math": 2048,
+            "quality_math": 512,
             "quality_instruction": 256,
             "quality_coding": 2048,
             "quality_longctx": 2048,
-            "quality_heldout_math": 2048,
+            "quality_heldout_math": 512,
             "quality_heldout_instruction": 256,
             "quality_heldout_code": 2048,
-            "note": "eval.py default call budget is max_tokens=512+1536 reasoning margin = 2048 for math/coding/longctx; 256 for instruction",
+            "note": "derived from the evaluator source: math and held-out math use the eval.py default max_tokens=512; coding, longctx, and held-out code use 512+1536 reasoning margin = 2048; instruction and held-out instruction use 256",
         },
-        "token_accounting": "final usage object from streaming responses (stream_options include_usage=true); missing usage = failed sample",
+        "token_accounting": "speed/ladder/soak (measure.py): final usage object from streaming responses (stream_options include_usage=true), missing usage = failed sample; quality (eval.py): usage object from non-streaming responses",
     },
     "safety": {
         "core_limit_c": 80,

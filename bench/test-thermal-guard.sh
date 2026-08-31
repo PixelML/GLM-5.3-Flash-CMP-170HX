@@ -9,7 +9,22 @@ set -eu
 cd "$(dirname "$0")/.."
 STOPFILE=${STOPFILE:-/tmp/.tg-stop-$$}
 export STOPFILE
-cleanup() { rm -f "$STOPFILE" "$STOPFILE.cpid"; }
+# Unconditional EXIT cleanup: terminate and reap only this test's owned
+# leader/child/PGID so a failing assertion can never orphan the workload
+# under test. Never signals foreign process groups.
+cleanup() {
+  if [ -n "${CHILD:-}" ]; then
+    kill -9 "$CHILD" 2>/dev/null || true
+  fi
+  if [ -n "${LEADER:-}" ]; then
+    kill -9 "$LEADER" 2>/dev/null || true
+  fi
+  if [ -n "${PGID:-}" ]; then
+    kill -9 -- "-$PGID" 2>/dev/null || true
+  fi
+  wait 2>/dev/null || true
+  rm -f "$STOPFILE" "$STOPFILE.cpid"
+}
 trap cleanup EXIT
 for tool in setsid ps timeout; do
   if ! command -v "$tool" >/dev/null 2>&1; then

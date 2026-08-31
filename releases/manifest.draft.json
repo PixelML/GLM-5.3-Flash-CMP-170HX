@@ -7,7 +7,7 @@
   "canonical_model": "GLM-5.3-Flash",
   "platform": "CMP-170HX",
   "github_repo": "PixelML/GLM-5.3-Flash-CMP-170HX",
-  "github_revision": "PENDING-MERGE-HEAD",
+  "github_revision": "b459e8e264613241d2416dddd6835b1d5886e42c",
   "measured_harness_revision": "0a50f0f38c069559516bf66343e1083ec3ef6145",
   "sources": [
     {
@@ -64,5 +64,5 @@
     "uncertainty_note": "single-run small-sample gate; medians reported, no significance claims; streaming TTFT/ITL fields were harness artifacts this phase (0.0/null) and are published as not captured"
   },
   "notes": "Third-party weights are tested in place, not mirrored; the upstream GGUF is added to the PixelML verified Collection at publication time. Phase-C evaluation metadata above resolves to redacted artifacts at github_revision. publication_status moves to candidate only after review approval at the frozen revision.",
-  "github_revision_note": "PENDING-MERGE-HEAD until merge: the publication head is the immutable PR merge commit, knowable only at merge time; the measured harness evidence is pinned separately via measured_harness_revision"
+  "github_revision_note": "pinned to the immutable reviewed PR head b459e8e264613241d2416dddd6835b1d5886e42c (refs/pull/6/head); redacted phase-C evidence resolves here. Publication is recorded by the final merge commit of the PR containing this head; measured_harness_revision pins the harness used for the measured evidence separately."
 }
