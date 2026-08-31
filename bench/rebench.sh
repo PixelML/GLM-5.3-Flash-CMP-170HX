@@ -98,6 +98,11 @@ sleep 2
 kill -KILL -- "-$SERVER_PID" 2>/dev/null || kill -KILL "$SERVER_PID" 2>/dev/null || true
 wait "$SERVER_PID" 2>/dev/null || true
 
+# Publication gate: every planned request must have succeeded and the
+# protocol must have actually run (ladder levels/reps, soak depth). A
+# degraded run fails here instead of printing a completed status.
+REBENCH_OUTDIR="$OUTDIR" bash bench/verify-rows.sh
+
 # Every artifact of this run derives from this run's own outputs, with the
 # watcher-verified thermal status and pre-run harness identity attached.
 THERMAL_BREACHES=none bench/derive-row.sh "$OUTDIR"
@@ -195,6 +200,8 @@ manifest = {
             "note": "derived from the evaluator source: math and held-out math use the eval.py default max_tokens=512; coding, longctx, and held-out code use 512+1536 reasoning margin = 2048; instruction and held-out instruction use 256",
         },
         "token_accounting": "speed/ladder/soak (measure.py): final usage object from streaming responses (stream_options include_usage=true), missing usage = failed sample; quality (eval.py): usage object from non-streaming responses",
+        "actual_counts": json.load(open(out + "/actual-counts.json")) if os.path.exists(out + "/actual-counts.json") else None,
+        "actual_counts_note": "verified by bench/verify-rows.sh before derivation; null means the gate did not run, which is itself a failure",
     },
     "safety": {
         "core_limit_c": 80,
