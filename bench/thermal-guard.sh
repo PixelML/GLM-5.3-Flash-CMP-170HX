@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Read-only thermal/Xid guard. Exit 0 = safe to continue, exit 1 = STOP.
+# Hard limits per safety policy: CORE_MAX (default 80 C), MEM_MAX (85 C).
+# Also stops if nvidia-smi fails, no GPUs are visible, or an NVIDIA Xid
+# appears in the kernel log. Never modifies GPU state.
+set -u
+CORE_MAX="${CORE_MAX:-80}"
+MEM_MAX="${MEM_MAX:-85}"
+# WATCH_PID is the owned server group leader (setsid-launched serve.sh);
+# WATCH_PGID is its process group. Breach handling kills the whole owned
+# group (negative PID), falling back to the leader PID only if needed.
+WATCH_PID="${WATCH_PID:-}"
+WATCH_PGID="${WATCH_PGID:-$WATCH_PID}"
+
+stop_owned() {
+  if [ -n "$WATCH_PGID" ]; then
+    kill -TERM -- "-$WATCH_PGID" 2>/dev/null || true
+    sleep 1
+    kill -KILL -- "-$WATCH_PGID" 2>/dev/null || true
+  fi
+  [ -z "$WATCH_PID" ] || kill -KILL "$WATCH_PID" 2>/dev/null || true
+}
+WATCH_INTERVAL="${WATCH_INTERVAL:-5}"
+
+# --watch <stop-file>: monitor until the stop file appears or WATCH_PID exits.
+# On breach/GPU loss, kill only WATCH_PID (our server), never a foreign PID.
+if [ "${1:-}" = "--watch" ]; then
+  stop_file="${2:?usage: thermal-guard.sh --watch <stop-file-path>}"
+  while true; do
+    [ -f "$stop_file" ] && exit 0
+    if [ -n "$WATCH_PID" ] && ! kill -0 "$WATCH_PID" 2>/dev/null; then
+      echo "[thermal-watch] server process gone; watch exits"
+      exit 0
+    fi
+    if ! out=$(nvidia-smi --query-gpu=temperature.gpu,temperature.memory \
+                --format=csv,noheader,nounits 2>&1); then
+      echo "[thermal-watch] nvidia-smi failed: $out"
+      stop_owned
+      exit 1
+    fi
+    n=$(printf "%s\n" "$out" | grep -c .)
+    if [ "$n" -ne "${EXPECT_GPUS:-4}" ]; then
+      echo "[thermal-watch] GPU count changed: $n != ${EXPECT_GPUS:-4}"
+      stop_owned
+      exit 1
+    fi
+    xid_src=""
+    if command -v dmesg >/dev/null 2>&1 && dmesg -T >/dev/null 2>&1; then
+      xid_src="dmesg -T"
+    elif [ -r /var/log/kern.log ]; then
+      xid_src="cat /var/log/kern.log"
+    fi
+    if [ -z "$xid_src" ]; then
+      echo "[thermal-watch] FAIL-CLOSED: no readable kernel log for Xid scan"
+      stop_owned
+      exit 1
+    fi
+    if $xid_src 2>/dev/null | grep -qi "NVRM.*Xid"; then
+      echo "[thermal-watch] Xid detected in kernel log"
+      stop_owned
+      exit 1
+    fi
+    breach=""
+    while IFS= read -r line; do
+      IFS=, read -r tc tm <<< "$(echo "$line" | tr -d ' ')"
+      tc="${tc:-999}"; tm="${tm:-999}"
+      if [ "$tc" -ge "$CORE_MAX" ] || [ "$tm" -ge "$MEM_MAX" ]; then
+        breach="core=${tc}C mem=${tm}C (limits ${CORE_MAX}/${MEM_MAX})"
+      fi
+    done <<< "$out"
+    if [ -n "$breach" ]; then
+      echo "[thermal-watch] THERMAL BREACH: $breach"
+      stop_owned
+      exit 1
+    fi
+    sleep "$WATCH_INTERVAL"
+  done
+fi
+
+if ! out=$(nvidia-smi --query-gpu=index,temperature.gpu,temperature.memory \
+            --format=csv,noheader,nounits 2>&1); then
+  echo "THERMAL STOP: nvidia-smi failed: $out"
+  exit 1
+fi
+if [ -z "$out" ]; then
+  echo "THERMAL STOP: no GPUs visible"
+  exit 1
+fi
+while IFS= read -r line; do
+  IFS=, read -r idx tc tm <<< "$(echo "$line" | tr -d ' ')"
+  tc="${tc:-999}"; tm="${tm:-999}"
+  if [ "$tc" -ge "$CORE_MAX" ]; then
+    echo "THERMAL STOP: GPU $idx core ${tc} C >= ${CORE_MAX} C"
+    exit 1
+  fi
+  if [ "$tm" -ge "$MEM_MAX" ]; then
+    echo "THERMAL STOP: GPU $idx memory ${tm} C >= ${MEM_MAX} C"
+    exit 1
+  fi
+done <<< "$out"
+
+# Best-effort Xid scan; dmesg may be restricted, in which case this is skipped.
+xids=$(dmesg -T 2>/dev/null | grep -i xid | tail -5 || true)
+if [ -n "$xids" ]; then
+  echo "THERMAL STOP: NVIDIA Xid detected in kernel log:"
+  echo "$xids"
+  exit 1
+fi
+exit 0
