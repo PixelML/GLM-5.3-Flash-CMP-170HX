@@ -12,8 +12,9 @@ boundary and evidence rules. DGX Spark deployment is documented separately in
 ## Hardware target
 
 Four-card CMP 170HX test node: 4 x 64 GiB = 256 GiB aggregate VRAM, SM80
-(Ampere), PCIe Gen2 x4 per card in the current test guest, 180 W per-card
-benchmark power policy with forced airflow. The node exposed three cards when
+(Ampere), PCIe Gen2 x4 per card in the current test guest, forced airflow. Per-card
+power limits were not queried by the measured harness this phase; see the
+release manifest telemetry note. The node exposed three cards when
 the earliest attempts below were evaluated (2026-08-30); those records keep
 their three-card arithmetic as history. Generic labels only; see the club
 repository for full node documentation.

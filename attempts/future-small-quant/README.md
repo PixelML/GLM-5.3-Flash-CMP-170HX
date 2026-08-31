@@ -13,7 +13,7 @@ four-card budget on paper — the 198.1 GiB AWQ INT4 (49.5 GiB/card; blocked by
 runtime support, see [AWQ attempt](../awq-int4-vllm/README.md)) and the
 146.05 GiB UD-IQ4_XS GGUF (36.5 GiB/card; since measured on 2026-08-30, see
 [GGUF attempt](../gguf-ud-iq4xs-llamacpp/README.md)). Size alone is therefore
-not the open question here; a runtime-compatible higher-quality lane is.
+not the open question here; no runtime-compatible higher-quality lane was identified or tested.
 
 ## Search performed
 

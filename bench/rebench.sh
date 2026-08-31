@@ -29,6 +29,12 @@ cleanup() {
 trap cleanup EXIT
 bench/thermal-guard.sh
 bench/preflight.sh
+
+# Capture harness identity BEFORE any run artifact (serve log, run dir)
+# exists, so a clean checkout is not misreported as dirty.
+HARNESS_REVISION="$(git rev-parse HEAD)"
+if [ -n "$(git status --porcelain | head -1)" ]; then HARNESS_DIRTY=dirty; else HARNESS_DIRTY=clean; fi
+export HARNESS_REVISION HARNESS_DIRTY
 setsid bash bench/serve.sh > results/serve-rebench.log 2>&1 &
 SERVER_PID=$!
 # Continuous guard for the whole run: exact GPU count, thermal ceiling,
@@ -74,8 +80,23 @@ done
 wait "$DRIVER_PID"; driver_rc=$?
 if [ "$driver_rc" -ne 0 ]; then echo "workload failed rc=$driver_rc"; exit 1; fi
 
-# Every artifact of this run derives from this run's own outputs.
-bench/derive-row.sh "$OUTDIR"
+# Stop the safety watcher and owned server group cleanly BEFORE offline
+# derivation, and fail if the watcher was not healthy through the whole
+# run window. Only then may "thermal breaches: none" be asserted.
+touch "$STOPFILE"
+wait "$WATCHER_PID"; watcher_rc=$?
+if [ "$watcher_rc" -ne 0 ]; then
+  echo "safety watch exited rc=$watcher_rc; failing run"
+  exit 1
+fi
+kill -TERM -- "-$SERVER_PID" 2>/dev/null || kill -TERM "$SERVER_PID" 2>/dev/null || true
+sleep 2
+kill -KILL -- "-$SERVER_PID" 2>/dev/null || kill -KILL "$SERVER_PID" 2>/dev/null || true
+wait "$SERVER_PID" 2>/dev/null || true
+
+# Every artifact of this run derives from this run's own outputs, with the
+# watcher-verified thermal status and pre-run harness identity attached.
+THERMAL_BREACHES=none bench/derive-row.sh "$OUTDIR"
 python3 bench/summarize.py "$OUTDIR/experiments.csv" "$OUTDIR/quality.jsonl" "$OUTDIR/summary.csv" > "$OUTDIR/summary.json"
 python3 bench/charts.py "$OUTDIR/summary.csv" "$OUTDIR/charts" "$OUTDIR/ladder.jsonl"
 REBENCH_OUTDIR="$OUTDIR" python3 - <<'PY'

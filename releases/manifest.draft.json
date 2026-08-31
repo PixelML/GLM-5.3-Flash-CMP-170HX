@@ -52,7 +52,7 @@
         "coding": "1/3",
         "heldout_code": "1/1"
       },
-      "note": "corrected pack results/phase63/quality-final2.jsonl committed (26 tasks, 21 passed); two harness defects fixed during phase, remaining misses are model-output behavior"
+      "note": "corrected pack results/phase63/quality-final2.jsonl committed (26 tasks, 21 passed); two harness defects fixed during phase; remaining misses are recorded as genuine failures at the evaluated budget, and receipts lack finish/reasoning fields so per-miss diagnoses are not claimed"
     },
     "thermals": {
       "core_c": "43 (final snapshot per card: 43/41/43/41)",
