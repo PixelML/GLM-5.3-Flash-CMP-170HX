@@ -7,7 +7,7 @@
   "canonical_model": "GLM-5.3-Flash",
   "platform": "CMP-170HX",
   "github_repo": "PixelML/GLM-5.3-Flash-CMP-170HX",
-  "github_revision": "PENDING-FIX-HEAD",
+  "github_revision": "8d0783d5a1ca75b2c31a89764a1f68d895cdf36a",
   "measured_harness_revision": "0a50f0f38c069559516bf66343e1083ec3ef6145",
   "sources": [
     {
