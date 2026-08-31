@@ -145,7 +145,9 @@ def main():
             "t_task_source": t_task_src,
             "energy_gpu_wh": round(energy_wh, 4) if energy_wh is not None else None,
             "energy_note": ("snapshot-based estimate from one final GPU "
-                            "power reading, not integrated; GPU-only lower bound"),
+                            "power reading, not integrated; GPU-only "
+                            "snapshot-power proxy, not an integrated-energy "
+                            "lower bound"),
             "energy_source": energy_src,
             "cost_note": ("hypothetical price band x snapshot energy estimate; "
                           "retries included via 1/success_rate; NOT measured "

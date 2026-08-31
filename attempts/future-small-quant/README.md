@@ -1,6 +1,6 @@
 # Candidate — a checkpoint that would actually fit
 
-Status: not-attempted (no runtime-compatible candidate existed as of 2026-08-30)
+Status: superseded on 2026-08-30 - the UD-IQ4_XS GGUF lane was measured (see gguf-ud-iq4xs-llamacpp); the open question here remains a runtime-compatible HIGHER-quality lane
 Date: 2026-08-30
 
 ## What would qualify
@@ -18,8 +18,9 @@ not the open question here; a runtime-compatible higher-quality lane is.
 ## Search performed
 
 HF search for `GLM-5.3-Flash` on 2026-08-30 (community-visible quants
-enumerated): NVFP4, EXL3/TR3 4bpw, AWQ INT4, FP8, BF16, GGUF, MLX. **None met
-the byte budget with a usable runtime at that date.** Re-run this search
+enumerated): NVFP4, EXL3/TR3 4bpw, AWQ INT4, FP8, BF16, GGUF, MLX. **Nothing met
+the byte budget with a runtime at HIGHER effective quality than the measured
+UD-IQ4_XS GGUF on that date.** Re-run this search
 before assuming the conclusion still holds — new quants appear frequently.
 
 ## Also required

@@ -102,16 +102,14 @@ manifest = {
     "generated_unix": int(time.time()),
     "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
     "git_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
-    "git_remote": subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip(),
     "branch": subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip(),
     "name": os.environ.get("NAME", "runall"),
-    "model_dir": os.environ.get("MODEL_DIR", ""),
     "model_file": os.environ.get("MODEL_FILE", "GLM-5.3-Flash-UD-IQ4_XS-00001-of-00005.gguf"),
     "serve_cfg": {k: os.environ.get(k, "") for k in (
         "PORT", "CTX", "SPLIT", "TSPLIT", "PARALLEL", "THREADS",
         "FLASH_ATTN", "CACHE_K", "CACHE_V", "BATCH", "UBATCH", "NO_MMAP")},
     "speed_rows": len(rows),
-    "quality_log": "results/quality-runall.log",
+    "quality_log": "results/quality-%s.log" % os.environ.get("NAME", "runall"),
 }
 with open("results/manifest.json", "w") as f:
     json.dump(manifest, f, indent=2)

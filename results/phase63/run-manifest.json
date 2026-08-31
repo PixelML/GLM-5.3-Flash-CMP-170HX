@@ -31,7 +31,7 @@
     "driver": "610.43.03",
     "kernel": "6.8",
     "os": "Ubuntu 22.04",
-    "power_limit": "stock"
+    "power_limit": "as-configured; exact per-card limit not queried"
   },
   "protocol": {
     "warmups": 3,

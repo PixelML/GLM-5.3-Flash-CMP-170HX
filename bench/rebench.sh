@@ -75,33 +75,21 @@ wait "$DRIVER_PID"; driver_rc=$?
 if [ "$driver_rc" -ne 0 ]; then echo "workload failed rc=$driver_rc"; exit 1; fi
 
 # Every artifact of this run derives from this run's own outputs.
+# Post-driver re-check: a watcher failure concurrent with driver completion
+# must still fail the run (review 5062227005 finding 1, terminal race).
+if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
+  wait "$WATCHER_PID" || true
+  echo "safety watch died concurrent with driver completion; failing run"
+  touch "$STOPFILE"
+  kill -TERM -- "-$SERVER_PID" 2>/dev/null || true
+  exit 1
+fi
+if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+  echo "server died concurrent with driver completion; failing run"
+  touch "$STOPFILE"
+  exit 1
+fi
 bench/derive-row.sh "$OUTDIR"
 python3 bench/summarize.py "$OUTDIR/experiments.csv" "$OUTDIR/quality.jsonl" "$OUTDIR/summary.csv" > "$OUTDIR/summary.json"
 python3 bench/charts.py "$OUTDIR/summary.csv" "$OUTDIR/charts" "$OUTDIR/ladder.jsonl"
-REBENCH_OUTDIR="$OUTDIR" python3 - <<'PY'
-import json, os
-from datetime import datetime, timezone
-out = os.environ["REBENCH_OUTDIR"]
-manifest = {
-    "kind": "rebench-run",
-    "created_utc": datetime.now(timezone.utc).isoformat(),
-    "run_dir": out,
-    "artifacts": {
-        "warmups": out + "/warmups.jsonl",
-        "speed_c1": out + "/speed-c1.jsonl",
-        "ladder": out + "/ladder.jsonl",
-        "soak": out + "/soak.jsonl",
-        "quality": out + "/quality.jsonl",
-        "experiments_csv": out + "/experiments.csv",
-        "summary_csv": out + "/summary.csv",
-        "summary_json": out + "/summary.json",
-        "charts_dir": out + "/charts",
-        "gpu_snapshot": out + "/gpu-final.csv",
-    },
-}
-with open(out + "/run-manifest.json", "w") as f:
-    json.dump(manifest, f, indent=2)
-    f.write("\n")
-print("run manifest written")
-PY
 echo "rebench complete: $OUTDIR"
