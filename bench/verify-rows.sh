@@ -21,9 +21,9 @@ PLANNED = {
     "ladder_reps_per_level": 2,
     "soak_window_s": 1200,
 }
-# The soak window is stamped around the loop, so allow small stamping
-# jitter only; this is not a duration discount.
-SOAK_WINDOW_MIN_S = 1180
+# The soak window is measured from the monotonic clock (bash SECONDS) and
+# must cover the FULL declared duration: no tolerance, no discount.
+SOAK_WINDOW_MIN_S = PLANNED["soak_window_s"]
 
 out = sys.argv[1]
 def rows(name):
@@ -75,8 +75,12 @@ if bad_soak:
     fail(f"{len(bad_soak)} soak rows with failed requests")
 window_s = window.get("window_s")
 if not isinstance(window_s, int) or window_s < SOAK_WINDOW_MIN_S:
-    fail(f"soak window {window_s}s < required {SOAK_WINDOW_MIN_S}s "
-         f"(planned {PLANNED['soak_window_s']}s)")
+    fail(f"soak window {window_s}s < required {SOAK_WINDOW_MIN_S}s")
+start_utc = window.get("start_utc")
+end_utc = window.get("end_utc")
+if not (isinstance(start_utc, str) and start_utc.endswith("Z")
+        and isinstance(end_utc, str) and end_utc.endswith("Z")):
+    fail(f"soak-window timestamps missing or malformed: {start_utc} -> {end_utc}")
 
 counts = {
     "warmup_rows": len(warmups),

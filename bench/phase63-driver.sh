@@ -50,6 +50,7 @@ python3 bench/measure.py --base "$BASE" --prompt "$PROMPT" --max-tokens 256 \
 
 echo "== 20-min soak: sustained c=2, 256-tok completions =="
 SOAK_END=$((SECONDS + 1200))
+SOAK_START_SECONDS="$SECONDS"
 SOAK_START_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 soak_n=0
 : > ${OUTDIR}/soak.jsonl
@@ -61,10 +62,9 @@ while [ "$SECONDS" -lt "$SOAK_END" ]; do
   "$GUARD" || guard_breach "${OUTDIR}" "soak-rep-$soak_n"
 done
 SOAK_END_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-SOAK_START_EPOCH="$(date -u -d "$SOAK_START_UTC" +%s 2>/dev/null || echo 0)"
-SOAK_END_EPOCH="$(date -u -d "$SOAK_END_UTC" +%s 2>/dev/null || echo 0)"
+SOAK_ELAPSED_S="$((SECONDS - SOAK_START_SECONDS))"
 printf '{"start_utc": "%s", "end_utc": "%s", "window_s": %s}\n' \
-  "$SOAK_START_UTC" "$SOAK_END_UTC" "$((SOAK_END_EPOCH - SOAK_START_EPOCH))" \
+  "$SOAK_START_UTC" "$SOAK_END_UTC" "$SOAK_ELAPSED_S" \
   > "${OUTDIR}/soak-window.json"
 echo "soak reps completed: $soak_n"
 

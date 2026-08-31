@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 
-def write_run(d, speed=5, ladder_reps=2, soak=41, window=1205, ok=True):
+def write_run(d, speed=5, ladder_reps=2, soak=41, window=1200, ok=True):
     def row(c, r, o):
         return {"concurrency": c, "run": r, "ok": o}
     ladder = []
@@ -33,10 +33,12 @@ def run_gate(d):
 tmp = tempfile.mkdtemp()
 fails = 0
 cases = (
-    ("all-ok", {}, 0),
+    ("all-ok", {"window": 1200}, 0),
     ("ladder-fail", {"ok": False}, 1),
     ("soak-fail", {"ok": False}, 1),
     ("short-soak-window", {"window": 600}, 1),
+    ("boundary-soak-window", {"window": 1199}, 1),
+    ("exact-soak-window", {"window": 1200}, 0),
     ("short-speed", {"speed": 1}, 1),
     ("short-ladder", {"ladder_reps": 1}, 1),
 )
