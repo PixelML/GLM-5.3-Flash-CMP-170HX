@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Regression: a guard breach mid-driver must terminate the driver NONZERO
-# and persist evidence of the breach, so derive-row can never be reached
-# with a successful exit. Uses a stub nvidia-smi shim; no GPU required.
+# Regression: a guard breach mid-driver must terminate the PRODUCTION
+# driver (bench/phase63-driver.sh) NONZERO and persist breach evidence.
+# Runs the real driver with bounded command/guard shims (no GPU, no
+# server); fails if the production breach path ever regresses.
 # Run: bash bench/test-driver-breach.sh
 set -eu
 cd "$(dirname "$0")/.."
@@ -14,34 +15,59 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$TMP/bin"
+# Stub nvidia-smi: guard always sees a breach-temperature GPU; the
+# driver's evidence snapshot uses the same stub.
 cat > "$TMP/bin/nvidia-smi" <<'STUB'
 #!/bin/sh
-# Always report a core temp at/above the 80 C ceiling -> any guard
-# invocation (start, mid-driver, or watch) must STOP.
 echo "0, 81, 60, 100, 50, 100"
 exit 0
 STUB
-chmod +x "$TMP/bin/nvidia-smi"
+# Stub measure/eval: never called before the startup guard, but present so
+# an accidental early-success path would be observable.
+cat > "$TMP/bin/python3" <<'PYSTUB'
+#!/bin/sh
+case "$1" in
+  bench/measure.py|bench/eval.py) echo '{"unexpected_run": true}' >&2; exit 42 ;;
+  *) exec /usr/bin/env -u PYTHONPATH /usr/bin/python3 "$@" ;;
+esac
+PYSTUB
+chmod +x "$TMP/bin/nvidia-smi" "$TMP/bin/python3"
+# Bounded stub guard: fails immediately, printing a recognizable marker.
+printf '#!/bin/sh
+echo "THERMAL STOP: stub guard breach"
+exit 1
+' > "$TMP/guard.sh"
+chmod +x "$TMP/guard.sh"
 
-cat > "$TMP/driver.sh" <<'DRIVER'
-set -euo pipefail
-GUARD="$1"; OUT="$2"
-if "$GUARD"; then
-  echo "phase simulated driver passed guard" > /dev/null
-else
-  echo "GUARD_FAILED" > "$OUT/breach.out"
-  echo "gpu snapshot would be written here" > "$OUT/gpu-final.csv"
-  exit 1
-fi
-echo "guard passed (unexpected with stub)"
-DRIVER
-chmod +x "$TMP/driver.sh"
+OUT="$TMP/out"
+mkdir -p "$OUT"
+rc=0
+GUARD="$TMP/guard.sh" OUTDIR="$OUT" PATH="$TMP/bin:$PATH" \
+  timeout 60 bash bench/phase63-driver.sh >"$TMP/stdout.log" 2>&1 || rc=$?
 
-if PATH="$TMP/bin:$PATH" bash "$TMP/driver.sh" "$(pwd)/bench/thermal-guard.sh" "$TMP" >"$TMP/stdout.log" 2>&1; then
-  echo 'FAIL: driver exited 0 despite a guard breach'
-  cat "$TMP/stdout.log"
-  exit 1
+FAIL=0
+if [ "$rc" -eq 0 ]; then
+  echo 'FAIL: production driver exited 0 despite a guard breach'
+  FAIL=1
 fi
-grep -q THERMAL "$TMP/stdout.log" || { echo 'FAIL: no THERMAL_STOP message'; cat "$TMP/stdout.log"; exit 1; }
-grep -q GUARD_FAILED "$TMP/breach.out" || { echo 'FAIL: breach evidence not persisted'; exit 1; }
-echo 'driver-breach regression: PASS'
+if ! grep -q 'THERMAL STOP' "$TMP/stdout.log"; then
+  echo 'FAIL: no THERMAL_STOP message from guard'
+  FAIL=1
+fi
+if [ ! -s "$OUT/guard-breach.out" ]; then
+  echo 'FAIL: guard-breach.out missing or empty'
+  FAIL=1
+fi
+grep -q 'stage=startup' "$OUT/guard-breach.out" || { echo 'FAIL: wrong breach stage'; FAIL=1; }
+if [ ! -s "$OUT/gpu-final.csv" ]; then
+  echo 'FAIL: breach GPU snapshot not persisted'
+  FAIL=1
+fi
+if grep -q 'unexpected_run' "$TMP/stdout.log"; then
+  echo 'FAIL: workload was invoked despite guard breach'
+  FAIL=1
+fi
+if [ "$FAIL" -eq 0 ]; then
+  echo 'driver-breach regression (production driver): PASS'
+fi
+exit "$FAIL"

@@ -201,7 +201,7 @@ manifest = {
         },
         "token_accounting": "speed/ladder/soak (measure.py): final usage object from streaming responses (stream_options include_usage=true), missing usage = failed sample; quality (eval.py): usage object from non-streaming responses",
         "actual_counts": json.load(open(out + "/actual-counts.json")) if os.path.exists(out + "/actual-counts.json") else None,
-        "actual_counts_note": "verified by bench/verify-rows.sh before derivation; null means the gate did not run, which is itself a failure",
+        "actual_counts_note": "verified against the declared plan by bench/verify-rows.sh before derivation; the gate FAILS the run on any count/duration disagreement, so null here means the gate did not run, which is itself a failure",
     },
     "safety": {
         "core_limit_c": 80,
@@ -213,6 +213,7 @@ manifest = {
 }
 for name, p in (("warmups","warmups.jsonl"),("speed_c1","speed-c1.jsonl"),
                 ("ladder","ladder.jsonl"),("soak","soak.jsonl"),
+                ("soak_window","soak-window.json"),
                 ("quality","quality.jsonl"),("experiments_csv","experiments.csv"),
                 ("summary_csv","summary.csv"),("summary_json","summary.json"),
                 ("gpu_snapshot","gpu-final.csv"),("run_identity","run-identity.json")):
