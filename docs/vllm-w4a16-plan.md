@@ -37,6 +37,15 @@ INFERRED label applies to all interpretation below; the numbers are MEASURED in 
 - Quant selection rule: symmetric quantization with an unquantized MTP head is the validated pattern; asymmetric AWQ (candidate 2) is deprioritized unless probe evidence changes the picture.
 - PP-first topology; mem-util 0.85 with a drafter; never `--enforce-eager` with a drafter.
 
+### Candidate fit and runtime facts (ported from the superseded duplicate repository)
+
+Externally reported sizes and inferred per-card fits, retained so the duplicate repo can be archived without losing source-labeled facts. None are measured on CMP.
+
+- Candidate 1 (wtdcode AWQ W4A16 at rev abd7b077): total 190.81 GB / 177.71 GiB (externally reported); ~44.43 GiB weights/card ideal TP4 (inferred). Planned runtime wtdcode/vllm-backport v0.11.0 at commit 6048dbd07209a8fa8b24aeb761652af7143e31d8 (SM80 images; publisher reports GLM testing on 8xA6000 TP8 - externally reported). Our 4x CMP SM80 topology: UNTESTED.
+- Candidate 2 (cyankiwi AWQ INT4 at rev 3999f9bf): 212,721,952,636 bytes = 198.11 GiB (externally reported); ~49.53 GiB/card ideal TP4 (inferred). Fit candidate only; serving not proven on CMP.
+- Candidate 3 (PixelML mixed W4A16-expert / W8A16-dense): static fit in [PR #8](https://github.com/PixelML/GLM-5.3-Flash-CMP-170HX/pull/8) - planned artifact 170,526,899,714 B = 170.5 GB = 158.8 GiB = 1.087x the GGUF baseline; runtime gate: vLLM PR 53906 open/merge-blocked (SM90/100/120, PP gated off), TP4 plausible/untested, custom all-reduce must be disabled on 4x PCIe without P2P. Supporting precedents: vLLM PR 48918 (CT WNA16 MoE, merged), llm-compressor #2940 (mixed-precision MoE).
+- Order of operations: wait out the GPU work gate; re-check 53906 merge state at pin time; candidates 1 -> 2 -> 3, one at a time through the full gate chain, advancing only after merge-or-close of the current one.
+
 ### Evidence links (populated as this lane produces results)
 
 Immutable pins land here: run manifest, raw C1 and ladder JSONL, and methodology at the exact evidence commit. Mutable links (open PRs, issue comments) are not used as evidence.
