@@ -31,9 +31,11 @@ if [ -n "${LLAMA_SERVER:-}" ] && [ -x "$LLAMA_SERVER" ]; then
 fi
 
 # Per-card configured power limits, queried live rather than assumed.
-POWER_LIMITS="$(nvidia-smi --query-gpu=power.limit --format=csv,noheader 2>/dev/null | tr '
-' ';' || true)"
-POWER_LIMITS="${POWER_LIMITS:-unavailable}"
+POWER_LIMITS="$(nvidia-smi --query-gpu=power.limit --format=csv,noheader 2>/dev/null | tr '\n' ';')"
+if ! nvidia-smi --query-gpu=power.limit --format=csv,noheader >/dev/null 2>&1; then
+  echo "FATAL: cannot query per-card power limits; refusing to derive row with assumed power data" >&2
+  exit 1
+fi
 
 # Thermal breaches: "none" may only be asserted by the caller (rebench.sh)
 # after it confirmed a healthy safety watcher for the whole run window.
@@ -72,7 +74,23 @@ identity = {
 with open(out / 'run-identity.json', 'w') as f:
     json.dump(identity, f, indent=2)
 '\n'
-cfg = 'phase63-baseline;ts=1;1;1;1;th=8;par=1;ctx=16384;fa=auto;ctk=default;ctv=default;b=2048;ub=512;mmap=yes'
+_env = os.environ
+def _cfgval(key, default):
+    v = _env.get(key)
+    return v if v not in (None, "") else default
+cfg = ";".join([
+    "phase63-baseline",
+    "ts=" + _cfgval("TSPLIT", "1,1,1,1"),
+    "th=" + _cfgval("THREADS", "8"),
+    "par=" + _cfgval("PARALLEL", "1"),
+    "ctx=" + _cfgval("CTX", "16384"),
+    "fa=" + _cfgval("FLASH_ATTN", "auto"),
+    "ctk=" + _cfgval("CACHE_K", "f16"),
+    "ctv=" + _cfgval("CACHE_V", "f16"),
+    "b=" + _cfgval("BATCH", "2048"),
+    "ub=" + _cfgval("UBATCH", "512"),
+    "mmap=" + ("no" if _env.get("NO_MMAP") else "yes"),
+])
 row = [cfg, str(med), med_or_na('itl_ms_p50'), med_or_na('itl_ms_p95'),
        ';'.join(s['mem'] for s in snap), ';'.join(s['tc'] for s in snap),
        ';'.join(s['tm'] for s in snap), ';'.join(s['pw'] for s in snap),

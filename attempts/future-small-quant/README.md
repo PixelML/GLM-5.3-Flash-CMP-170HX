@@ -18,8 +18,10 @@ not the open question here; no runtime-compatible higher-quality lane was identi
 ## Search performed
 
 HF search for `GLM-5.3-Flash` on 2026-08-30 (community-visible quants
-enumerated): NVFP4, EXL3/TR3 4bpw, AWQ INT4, FP8, BF16, GGUF, MLX. **None met
-the byte budget with a usable runtime at that date.** Re-run this search
+enumerated): NVFP4, EXL3/TR3 4bpw, AWQ INT4, FP8, BF16, GGUF, MLX. None of
+the higher-bit-width candidates met the byte budget; the one fitting
+candidate with a usable runtime found at that date is the measured
+llama.cpp UD-IQ4_XS GGUF lane (see gguf-ud-iq4xs-llamacpp). Re-run this search
 before assuming the conclusion still holds — new quants appear frequently.
 
 ## Also required

@@ -13,15 +13,22 @@ One-command entry point for the UD-IQ4_XS llama.cpp attempt.
 ## Run
 
 ```bash
-export LLAMA_SERVER=/path/to/llama-server
-export MODEL_DIR=/path/to/shards
-./run-all.sh
+MODEL_DIR=/path/to/shards LLAMA_SERVER=/path/to/llama-server \
+  bench/rebench.sh
 ```
 
-Produces:
+Note: `run-all.sh` is a deprecated fail-closed shim that delegates to `bench/rebench.sh`
 
-- `results/speed.jsonl` — throughput/latency sweeps
-- `results/quality.jsonl` — per-task pass/fail + latency
-- `results/manifest.json` — run metadata
+Produces one timestamped directory `results/run-<UTC timestamp>/`:
+
+- `warmups.jsonl`, `speed-c1.jsonl`, `ladder.jsonl`, `soak.jsonl` — raw timing data
+- `quality.jsonl` — per-task pass/fail + latency
+- `experiments.csv`, `summary.csv`, `summary.json` — derived rows
+- `charts/` — generated SVGs
+- `gpu-final.csv` — end-of-run GPU snapshot
+- `run-identity.json` — runtime binary fingerprint, harness revision,
+  token-accounting endpoint, live power limits, thermal-watch status
+- `run-manifest.json` — full sanitized run manifest (identity +
+  serve config + GPU/protocol/safety metadata + artifact paths
 
 Safety: abort at 80 °C core / 85 °C memory / any Xid. Stop the server when done.

@@ -44,6 +44,10 @@ WATCHER_PID=$!
 deadline=$((SECONDS + 2400))
 until curl -sf "http://127.0.0.1:${PORT}/health" 2>/dev/null | grep -q ok; do
   kill -0 "$SERVER_PID" || { echo "server died; tail:"; tail -20 results/serve-rebench.log; exit 1; }
+  if ! kill -0 "$WATCHER_PID" 2>/dev/null; then
+    echo "safety watch exited during server load; failing run"
+    exit 1
+  fi
   [ "$SECONDS" -lt "$deadline" ] || { echo "health timeout"; exit 1; }
   sleep 5
 done
@@ -100,13 +104,33 @@ THERMAL_BREACHES=none bench/derive-row.sh "$OUTDIR"
 python3 bench/summarize.py "$OUTDIR/experiments.csv" "$OUTDIR/quality.jsonl" "$OUTDIR/summary.csv" > "$OUTDIR/summary.json"
 python3 bench/charts.py "$OUTDIR/summary.csv" "$OUTDIR/charts" "$OUTDIR/ladder.jsonl"
 REBENCH_OUTDIR="$OUTDIR" python3 - <<'PY'
-import json, os
+import json, os, subprocess
 from datetime import datetime, timezone
 out = os.environ["REBENCH_OUTDIR"]
+identity_path = out + "/run-identity.json"
+if not os.path.exists(identity_path):
+    raise SystemExit("missing required run-identity.json; refusing partial manifest")
+with open(identity_path) as f:
+    identity = json.load(f)
+serve_cfg = {}
+for key in ("PORT", "CTX", "SPLIT", "TSPLIT", "PARALLEL", "THREADS",
+             "FLASH_ATTN", "CACHE_K", "CACHE_V", "BATCH", "UBATCH", "NO_MMAP"):
+    serve_cfg[key] = os.environ.get(key, "default")
+gpu_meta = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version",
+                          "--format=csv,noheader"], capture_output=True,
+                         text=True).stdout.strip() or "unavailable"
 manifest = {
     "kind": "rebench-run",
     "created_utc": datetime.now(timezone.utc).isoformat(),
     "run_dir": out,
+    "identity": identity,
+    "serve_config": serve_cfg,
+    "serve_config_source": "launch environment; non-set keys recorded as default",
+    "gpu": {"inventory": gpu_meta},
+    "protocol": {"max_tokens": 256, "quality_tasks": 26, "ladder": "1,2,4",
+                 "soak_seconds": 1200},
+    "safety": {"core_limit_c": 80, "mem_limit_c": 85,
+               "thermal_breaches": identity.get("thermal_breaches", "unverified")},
     "artifacts": {
         "warmups": out + "/warmups.jsonl",
         "speed_c1": out + "/speed-c1.jsonl",
@@ -118,6 +142,7 @@ manifest = {
         "summary_json": out + "/summary.json",
         "charts_dir": out + "/charts",
         "gpu_snapshot": out + "/gpu-final.csv",
+        "run_identity": identity_path,
     },
 }
 with open(out + "/run-manifest.json", "w") as f:
@@ -125,4 +150,5 @@ with open(out + "/run-manifest.json", "w") as f:
     f.write("\n")
 print("run manifest written")
 PY
+
 echo "rebench complete: $OUTDIR"

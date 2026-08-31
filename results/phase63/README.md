@@ -40,11 +40,8 @@ at pinned revision 2975ab41, SHA-256 verified at gate.
 math 8/8, instruction 4/5, longctx 3/3, heldout-math 4/4,
 heldout-instr 0/2, coding 1/3, heldout-code 1/1 -> 21/26 (80.8%).
 
-Remaining misses are model output behavior, not extraction bugs:
-
-- the two coding failures exhaust 2048 completion tokens inside
-  reasoning_content and never emit the fenced program (finish=length);
-  verified separately that the same prompts complete and pass at larger
-  budgets;
-- heldout instruction misses are exact-format non-compliance (line
-  count / word choice), scored as genuine failures.
+Remaining misses are genuine failures at the evaluated budget. The
+committed receipts do not include finish/reasoning/output fields, so no
+per-miss diagnosis (e.g. reasoning-length exhaustion or specific format
+deviations) is claimed here; confirming any such mechanism would require
+new receipts with full output metadata.

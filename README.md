@@ -63,8 +63,9 @@ on the tuning set, plus 4/4 held-out math and 1/1 held-out code — after two
 harness defects were found and fixed during the phase (a coding sandbox that
 dropped the candidate module, and completion budgets that starved reasoning
 output before any answer bytes). The two remaining coding misses and two
-held-out instruction misses are recorded as model-output behavior, not
-harness artifacts. Full receipt, per-request data, charts, and rebench entry:
+held-out instruction misses are recorded as genuine failures at the
+evaluated budget; the committed receipts lack the finish/reasoning fields
+needed to support per-miss diagnosis, so none is claimed. Full receipt, per-request data, charts, and rebench entry:
 [results/summary.csv](results/summary.csv),
 [results/phase63/README.md](results/phase63/README.md),
 [results/phase63/charts/](results/phase63/charts/),

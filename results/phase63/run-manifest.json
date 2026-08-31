@@ -31,7 +31,7 @@
     "driver": "610.43.03",
     "kernel": "6.8",
     "os": "Ubuntu 22.04",
-    "power_limit": "stock"
+    "power_limit": "not-queried (per-card configured limit not captured this phase; consistency with gpu.power_limit_w restored)"
   },
   "protocol": {
     "warmups": 3,
