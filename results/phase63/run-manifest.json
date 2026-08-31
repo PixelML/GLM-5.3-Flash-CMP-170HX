@@ -31,7 +31,7 @@
     "driver": "610.43.03",
     "kernel": "6.8",
     "os": "Ubuntu 22.04",
-    "power_limit": "stock"
+    "power_limit": "not-queried (per-card configured limit not captured this phase; consistency with gpu.power_limit_w restored)"
   },
   "protocol": {
     "warmups": 3,
@@ -47,9 +47,10 @@
     "core_limit_c": 80,
     "mem_limit_c": 85,
     "snapshot_file": "gpu-final.csv",
-    "throttle_events": 0,
-    "xid_events": 0,
-    "telemetry_note": "single snapshot at end of run + bounded guard calls between stages; continuous watch telemetry for the soak is a known gap in this run and is enforced in bench/rebench.sh for future runs"
+    "throttle_events": "not-recorded (no continuous throttle telemetry this phase; final snapshot only)",
+    "xid_events": "not-recorded (thermal-guard Xid scan ran between phases with no detected events logged; continuous kernel-log capture not committed)",
+    "telemetry_note": "single snapshot at end of run + bounded guard calls between stages; continuous watch telemetry for the soak is a known gap in this run and is enforced in bench/rebench.sh for future runs",
+    "thermal_breaches": "not-recorded (no continuous thermal-breach telemetry committed; guard checks ran between phases)"
   },
   "artifacts": {
     "warmups": "warmups.jsonl",
@@ -60,5 +61,10 @@
     "quality_corrected": "quality-final2.jsonl",
     "summary_csv": "../summary.csv",
     "charts_dir": "charts/"
-  }
+  },
+  "harness_git_sha": "0a50f0f38c069559516bf66343e1083ec3ef6145",
+  "gpu": {
+    "power_limit_w": "as-configured (operator-set; unchanged this phase; exact per-card limit not queried)"
+  },
+  "harness_git_sha_note": "measured phase-C baseline ran on the bench/ tree at this revision; later PR commits touch harness/derivation code only and are pinned separately by the PR head in review"
 }

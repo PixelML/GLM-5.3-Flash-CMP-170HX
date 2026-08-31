@@ -12,8 +12,9 @@ boundary and evidence rules. DGX Spark deployment is documented separately in
 ## Hardware target
 
 Four-card CMP 170HX test node: 4 x 64 GiB = 256 GiB aggregate VRAM, SM80
-(Ampere), PCIe Gen2 x4 per card in the current test guest, 180 W per-card
-benchmark power policy with forced airflow. The node exposed three cards when
+(Ampere), PCIe Gen2 x4 per card in the current test guest, forced airflow. Per-card
+power limits were not queried by the measured harness this phase; see the
+release manifest telemetry note. The node exposed three cards when
 the earliest attempts below were evaluated (2026-08-30); those records keep
 their three-card arithmetic as history. Generic labels only; see the club
 repository for full node documentation.
@@ -62,8 +63,9 @@ on the tuning set, plus 4/4 held-out math and 1/1 held-out code — after two
 harness defects were found and fixed during the phase (a coding sandbox that
 dropped the candidate module, and completion budgets that starved reasoning
 output before any answer bytes). The two remaining coding misses and two
-held-out instruction misses are recorded as model-output behavior, not
-harness artifacts. Full receipt, per-request data, charts, and rebench entry:
+held-out instruction misses are recorded as genuine failures at the
+evaluated budget; the committed receipts lack the finish/reasoning fields
+needed to support per-miss diagnosis, so none is claimed. Full receipt, per-request data, charts, and rebench entry:
 [results/summary.csv](results/summary.csv),
 [results/phase63/README.md](results/phase63/README.md),
 [results/phase63/charts/](results/phase63/charts/),

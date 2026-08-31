@@ -15,11 +15,14 @@ lands here after the run.
 
 ## Choose a recipe
 
+> **Quality gate:** the project quality floor is a 90% tuning-set pass rate.
+> This baseline is below that floor (16/19 tuning passes; 21/26 including
+> held-out). It is a measured research baseline, not a recommended winner;
+> no configuration should be crowned until a lane clears the floor.
+
 | Goal | Artifact | Runtime | Topology | Validation | Recipe |
 | --- | --- | --- | --- | --- | --- |
-| Max speed | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (17.73 tok/s c=1 median) | phase C |
-| Balanced | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (same baseline; no second lane measured yet) | phase C |
-| Max quality | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (QI 0.783; no higher-quality lane measured yet) | phase C |
+| Measured baseline | UD-IQ4_XS GGUF | llama.cpp DSA fork | 4-card even split | **measured** (17.73 tok/s c=1 median; QI 0.783 — below the 90% floor) | phase C |
 
 ## Run it
 
@@ -49,20 +52,22 @@ First measured baseline (phase C, 2026-08-30; 400-token prompt /
 gate, medians reported): 17.73 tok/s aggregate decode,
 14.44 s end-to-end per task. Aggregate throughput is ~flat across the
 1/2/4 concurrency ladder (compute-bound); a 20-minute soak at c=2 held
-17.5-17.7 tok/s with no throttling.
+17.5-17.7 tok/s. Throttling was not continuously logged this phase, so
+no zero-throttle claim is made; see the run manifest's not-recorded entries.
 
 Corrected quality index 0.783 (mean bucket rate over math, instruction,
-coding, long-context; small-sample gate, not a leaderboard). Two harness
+coding, long-context; small-sample gate, not a leaderboard; below the 90%
+project quality floor). Two harness
 defects were found and fixed during this phase — a sandbox wrapper that
 dropped the candidate file from coding tasks, and completion budgets that
 starved reasoning models before any answer bytes were produced. Raw JSONL,
 the corrected pack, and the defect log are in results/phase63/ (README.md
 inside documents the defects and the corrected per-bucket scores).
 
-Charts (quality-vs-cost with GPU-only energy lower bound and disclosed
-hypothetical price band, quality-vs-time, quality-vs-throughput,
-concurrency-vs-throughput) are regenerated from results/summary.csv by
-bench/charts.py into results/phase63/charts/.
+Charts (quality-vs-cost with a GPU snapshot-power proxy — not integrated
+task energy — and a disclosed hypothetical price band; quality-vs-time;
+quality-vs-throughput; concurrency-vs-throughput) are regenerated from
+results/summary.csv by bench/charts.py into results/phase63/charts/.
 
 ## What failed (so far)
 

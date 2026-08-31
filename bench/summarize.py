@@ -10,10 +10,14 @@ Quality Index (disclosed, local, NOT a universal score):
        (math, coding, instruction, longctx), each shown beside the composite.
   Sample sizes are small; treat QI as a smoke gate, not a ranking oracle.
 
-Cost model (disclosed):
-  - energy_gpu_wh = sum(power_w) * t_task_s / 3600 per successful task,
-    GPU-only LOWER BOUND (idle host, fans, networking excluded).
-  - cost_usd_band = energy_kwh * [price_low, price_high] with defaults
+Energy/cost PROXY (disclosed, not integrated energy):
+  - energy_gpu_wh = sum(final-snapshot power_w) * t_task_s / 3600.
+    This is a SNAPSHOT POWER PROXY: one end-of-run power reading multiplied
+    by the speed-protocol duration, then scaled by the tuning-eval pass
+    rate. It is NOT integrated task energy and NOT measured cost of the
+    evaluated tasks. Use only for rough cross-config comparison until
+    per-task energy capture exists.
+  - cost_usd_band = proxy_kwh * [price_low, price_high] with defaults
     0.05 / 0.30 USD/kWh (clearly hypothetical; no purchase data used).
   - failed/retried attempts increase the denominator via observed success rate.
 """
@@ -68,13 +72,20 @@ def main():
     rates, counts = load_quality(q_path)
     qi = round(sum(rates.values()) / len(rates), 4) if rates else None
     with open(exp_csv, newline="") as fh:
-        rows = list(csv.DictReader(fh))
+        # Keep the first real header and all data lines; drop comment
+        # lines so a leading '#' comment can never become the header.
+        lines = [ln for ln in fh if not ln.lstrip().startswith("#")]
+        rows = list(csv.DictReader(lines))
     out = []
     for r in rows:
         tok = float(r["median_tok_s"])
-        power = [float(x) for x in r["power_w"].split(";") if x]
-        ttft = float(r["ttft_ms"]) if r["ttft_ms"] else None
-        p50 = float(r["itl_p50"]) if r["itl_p50"] else None
+        power = [float(x) for x in (r.get("power_w") or "").split(";") if x]
+        ttft = float(r["ttft_ms"]) if r.get("ttft_ms") not in (None, "", "na") else None
+        p50 = float(r["itl_p50"]) if r.get("itl_p50") not in (None, "", "na") else None
+        # Only the final end-of-run GPU snapshot was committed for this
+        # phase; energy derived from it is a snapshot-based ESTIMATE, not
+        # integrated task energy.
+        energy_src = "snapshot_estimate"
         # End-to-end wall time for the protocol task is measured directly by
         # measure.py (e2e_s_median); only configs with a matching raw record
         # get a measured t_task_s. Fallback derives it from the measured rate
@@ -108,7 +119,6 @@ def main():
         total_requests = sum(v[1] for v in cfg_counts.values())
         failed_requests = sum(v[1] - v[0] for v in cfg_counts.values())
         retries = 0  # not yet recorded; left explicit so it is visible
-        attempts = total_requests + retries
         # Success rate = passed tasks / total tasks; each failed task is one
         # failed attempt of that task.
         success_rate = ((total_requests - failed_requests) / total_requests
@@ -122,7 +132,8 @@ def main():
                      if energy_wh is not None and expected_attempts else None)
         out.append({
             "config": r["config"], "median_tok_s": tok, "ttft_ms": ttft,
-            "itl_p50": p50, "itl_p95": (float(r["itl_p95"]) if r["itl_p95"] else None),
+            "itl_p50": p50,
+            "itl_p95": (float(r["itl_p95"]) if r.get("itl_p95") not in (None, "", "na") else None),
             "quality_log": cfg_q_path if cfg_rates else None,
             "quality_index": cfg_qi or qi, "bucket_rates": cfg_rates or rates,
             "bucket_counts": {b: v[1] for b, v in (cfg_counts or counts).items()},
@@ -133,9 +144,12 @@ def main():
             "t_task_s": round(t_task_s, 3),
             "t_task_source": t_task_src,
             "energy_gpu_wh": round(energy_wh, 4) if energy_wh is not None else None,
-            "energy_note": "GPU-only lower bound",
-            "cost_note": ("cost per successful task includes retries via "
-                          "1/success_rate; energy is GPU-only lower bound"),
+            "energy_note": ("snapshot-power proxy: one final power reading x "
+                            "task duration; NOT integrated energy and NOT a lower bound"),
+            "energy_source": energy_src,
+            "cost_note": ("hypothetical price band x snapshot energy estimate; "
+                          "retries included via 1/success_rate; NOT measured "
+                          "billing or integrated energy"),
             "cost_per_task_usd_low": round(cost_low, 6) if cost_low is not None else None,
             "cost_per_task_usd_high": round(cost_high, 6) if cost_high is not None else None,
             "price_band": [PRICE_LOW, PRICE_HIGH],

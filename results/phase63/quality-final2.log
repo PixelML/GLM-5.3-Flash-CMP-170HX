@@ -1,27 +1,27 @@
 {"total": 26, "passed": 21, "rate": 0.808}
-PASS math A bakery sells 240 muffins per day. Each 
-PASS math A train travels 420 km in 3.5 hours. A b 
-PASS math A shirt costs $60 after a 25% discount.  
-PASS math Compute 17 * 23 - 145. Answer with the n 
-PASS math If 3 machines produce 270 parts in 2 hou 
-PASS math A rectangle has perimeter 64 and length  
-PASS math A water tank fills at 12 L/min but drain 
-PASS math Sum the integers from 1 to 100 inclusive 
-FAIL instruction Write exactly 3 sentences about the ocea 
-PASS instruction List exactly 5 prime numbers below 20, o 
-PASS instruction Reply with only the word YES if 7 is pri 
-PASS instruction Produce a JSON object with exactly two k 
-PASS instruction Say 'alpha' then 'beta' then 'gamma', on 
-PASS coding from solution import is_balanced 
-FAIL coding from solution import second_max 
-FAIL coding from solution import flatten 
-PASS longctx needle@2000:pos0.25 
-PASS longctx needle@4000:pos0.5 
-PASS longctx needle@8000:pos0.75 
-PASS heldout-math A printer produces 45 pages per minute.  
-PASS heldout-math A cyclist rides 96 km in 4 hours. What i 
-PASS heldout-math A jacket costs $150 and is discounted by 
-PASS heldout-math Compute 13 * 17 - 121. Answer with the n 
-FAIL heldout-instr Write exactly 2 sentences about rivers.  
-FAIL heldout-instr Reply with only the word NO if 9 is prim 
-PASS heldout-code from solution import count_vowels 
+PASS math A bakery sells 240 muffins per day. Each
+PASS math A train travels 420 km in 3.5 hours. A b
+PASS math A shirt costs $60 after a 25% discount.
+PASS math Compute 17 * 23 - 145. Answer with the n
+PASS math If 3 machines produce 270 parts in 2 hou
+PASS math A rectangle has perimeter 64 and length
+PASS math A water tank fills at 12 L/min but drain
+PASS math Sum the integers from 1 to 100 inclusive
+FAIL instruction Write exactly 3 sentences about the ocea
+PASS instruction List exactly 5 prime numbers below 20, o
+PASS instruction Reply with only the word YES if 7 is pri
+PASS instruction Produce a JSON object with exactly two k
+PASS instruction Say 'alpha' then 'beta' then 'gamma', on
+PASS coding from solution import is_balanced
+FAIL coding from solution import second_max
+FAIL coding from solution import flatten
+PASS longctx needle@2000:pos0.25
+PASS longctx needle@4000:pos0.5
+PASS longctx needle@8000:pos0.75
+PASS heldout-math A printer produces 45 pages per minute.
+PASS heldout-math A cyclist rides 96 km in 4 hours. What i
+PASS heldout-math A jacket costs $150 and is discounted by
+PASS heldout-math Compute 13 * 17 - 121. Answer with the n
+FAIL heldout-instr Write exactly 2 sentences about rivers.
+FAIL heldout-instr Reply with only the word NO if 9 is prim
+PASS heldout-code from solution import count_vowels
