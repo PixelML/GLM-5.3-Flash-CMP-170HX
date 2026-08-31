@@ -1,88 +1,119 @@
 # Attempt — W4A16 experts + W8A16 dense (vLLM compressed-tensors)
 
-Status: static-fit-only
+Status: static-fit-only. All sizes below are INFERRED/untested until an emitted checkpoint is measured.
 Date: 2026-08-31
 
 ## Checkpoint (planned)
 
-- Base: zai-org/GLM-5.3-Flash on Hugging Face, Glm5NextForConditionalGeneration
-  (config: hidden 4096, 45 layers, 288 routed experts, top-k routing, 1 shared
-  expert, first 3 layers dense at intermediate 12288, MoE intermediate 2048,
-  vocab 154880). Exact pinned quantization revision: TBD, none exists yet.
-- Quantization (planned): compressed-tensors mixed scheme — routed-expert
-  linear weights W4A16 (group-wise), dense linears (attention projections,
-  dense MLP, router gate, embeddings, lm_head) W8A16 (group-wise). Activations
-  stay 16-bit; KV cache stays fp8 as in the measured GGUF baseline.
+- Base: zai-org/GLM-5.3-Flash pinned at `04c4e9e95c5da8862dced7e5056455116f83a7e0`
+  (Glm5NextForConditionalGeneration; hidden 4096, 45 layers + 1 MTP layer, 288
+  routed experts, 1 shared expert per MoE layer, first 3 layers dense at
+  intermediate 12288, MoE intermediate 2048, vocab 154880).
+- Quantization (planned): compressed-tensors mixed scheme. Config to be pinned
+  at emit time: routed-expert linears W4A16, symmetric, per-group-128
+  (group size verified against the checkpoint''s existing fp8 scale layout:
+  weight [2048,4096] with weight_scale_inv [16,32] => 128x128 groups), scale
+  dtype float16, zero point none; all other linears W8A16, symmetric,
+  per-group-128, scale dtype float16, zero point none. Target precedence:
+  routed experts first, then "all other Linear" catch-all group. Untouched
+  (stay BF16, excluded from quantized byte math): norms, router gate weights
+  under the W8 catch-all only if Linear; layernorm-family and hc_* KDA
+  coefficients are non-Linear and remain BF16/F32 as stored.
+- KV cache: fp8 as in the measured GGUF baseline; excluded from weight math.
 - License: base-model license applies to any derived artifact; conversion
   would be local-only, no weights published.
 
+## Complete checkpoint inventory (from the pinned safetensors index, 76,108 tensors)
+
+Official fp8 artifact totals 321,342,220,638 parameters / 328,337,455,672 B
+(305.8 GiB) across 62 shards. Class breakdown (params; dominant dtype):
+
+| class | params | stored dtype |
+| --- | ---: | --- |
+| routed experts (gate/up/down weights) | 311,653,564,416 | FP8 e4m3 |
+| routed expert weight_scale_inv | 19,021,824 | F32 (g=128) |
+| attention (MLA/KDA projections incl. q_a/q_b/kv_a/kv_b/o/b_proj/f_b/indexer) | 6,181,944,704 | BF16 + 1.2 B FP8 |
+| shared expert | 1,082,196,480 | FP8 e4m3 |
+| embeddings (input) | 634,388,480 | BF16 |
+| lm_head (untied) | 634,388,480 | BF16 |
+| vision tower | 563,627,008 | BF16 |
+| dense MLP (layers 1-3) | 503,749,728 | BF16/FP8/F32 mix |
+| MTP head (eh_proj + shared_head.head) | 33,558,528 | BF16 |
+| KDA hc_* coefficients | 35,391,870 | F32/BF16 |
+| norms | 389,120 | BF16 |
+
+Total check: 321,342,220,638 = 311,653,564,416 + 19,021,824 + 6,181,944,704 +
+1,082,196,480 + 634,388,480 + 634,388,480 + 563,627,008 + 503,749,728 +
+33,558,528 + 35,391,870 + 389,120. The earlier 313.3 B count and the
+4x4096x8192 attention shortcut in the first revision of this note were wrong;
+the real attention block is the Glm5Next hybrid MLA/KDA set above (e.g. kv_a
+[512,4096], kv_b [32768,512], o_proj [4096,16384], q_a [1536,4096], q_b
+[16384,1536]).
+
+## Planned-mixed-scheme byte arithmetic (INFERRED, g=128, fp16 scales, no zp)
+
+- Routed experts W4: 311,653,564,416 x 0.5 B + (311,653,564,416 / 128) x 2 B
+  = 160,706,177,280 B (160.7 GB).
+- Everything else W8: 9,669,634,398 x 1 B + (9,669,634,398 / 128) x 2 B
+  = 9,820,722,434 B (9.8 GB). This W8 target set includes the MTP head, vision
+  tower, and dense MLPs; MTP/vision can also be left BF16 as a variant, which
+  would add ~1.2 GB.
+- Total planned artifact: ~170,526,899,714 B = 170.5 GB = 158.8 GiB
+  (1.087x the measured UD-IQ4_XS GGUF at 156,822,111,075 B / 146.05 GiB).
+  The single 1.0625x packing factor used in the first revision was wrong;
+  per-scheme scale bytes are shown explicitly above.
+- Labels: inferred from the pinned safetensors index headers; no checkpoint
+  emitted, downloaded, or served under this scheme.
+
+## Fit on the four-card 64 GiB CMP node (256 GiB aggregate)
+
+- Weights alone: ~158.8 GiB, leaving ~97.2 GiB aggregate unallocated VRAM
+  before runtime state. This is NOT serving headroom: rank imbalance under
+  TP4, quant repacking buffers, CUDA graphs, NCCL/host-routed collectives,
+  fp8 KV cache, and activations all consume from it. Per-card balance needs a
+  live check (gate 3). No per-card claim is made from the aggregate.
+
 ## Runtime (static analysis, untested)
 
-- vLLM Glm5Next exists only via PR 53906 (open, 17 commits, head
-  7cf764c53ace7d83e1d237d87e8d3a1d9aac7b58, mergeable but mergeStateStatus
-  blocked at time of writing). Architecture is NOT in vLLM main.
-- Compressed-tensors loader in vLLM main documents per-target mixed schemes:
-  config_groups is a map of N groups, each with its own target list and
-  QuantizationArgs; get_scheme resolves per layer via find_matched_target
-  (vllm/model_executor/layers/quantization/compressed_tensors/compressed_tensors.py).
-- W4A16 and W8A16 both route through the WNA16 path
-  (schemes/compressed_tensors_wNa16.py); MoE experts route through
-  compressed_tensors_moe_wna16.py, which is wired to RoutedExperts via
-  _add_fused_moe_to_target_scheme_map. Two different num_bits values in two
-  config groups are the designed input to this dispatcher.
-- llm-compressor mixed-precision infra exists (closed #1713, #2083; open
-  #2940 shows a W4A16/W2A16 MoE precedent). vLLM PR 48918 (CT WNA16 MoE
-  backend incl. Humming) is MERGED into main, so no additional serving-side
-  patch is required beyond 53906 for the MoE wna16 path.
-
-## Static fit calculation (planned artifact, not measured)
-
-Per public config.json:
-
-- Dense layers 1-3: 3 x (gate_up 4096x2x12288 + down 12288x4096) =
-  452,984,832 params
-- Shared expert (1 per MoE layer, 42 layers): 42 x (4096x2x2048 + 2048x4096)
-  = 1,056,964,608 params
-- Routed experts: 42 x 288 x 25,165,824 = 304,508,553,216 params
-- Attention per layer Q,K,V,O at 64 heads x 128 head_dim: 4 x 4096 x 8192 =
-  134,217,728; x45 = 6,039,797,760 params
-- Embeddings + untied lm_head: 2 x 154880 x 4096 = 1,268,715,520 params
-
-Weights at planned bit widths (group-scale overhead folded into a 1.0625x
-packing factor; bf16 = 2 B/param):
-
-- Routed experts at 4 bits: 304,508,553,216 x 0.5 x 1.0625 ~ 161.8 GB
-- All other linears at 8 bits: 8,818,462,720 x 1.0 x 1.0625 ~ 9.4 GB
-- Total weights ~ 171.2 GB (~159.4 GiB). Compare measured UD-IQ4_XS GGUF
-  baseline in this repo: 156,822,111,075 B (146.05 GiB). The mixed CT
-  artifact is ~9% larger and excludes fp8 KV and CUDA context. On a
-  four-card 64 GiB CMP node (256 GiB VRAM), weights alone fit with ~85 GB
-  headroom, but per-card balance under TP4 needs a live check (gate 3).
-- Labels: inferred from public config.json; not downloaded, built, or served.
+- vLLM Glm5Next support: upstream PR 53906 (open, merge-blocked) at its cited
+  head implements SM90/SM100/SM120 paths; it does NOT make this SM80 node a
+  supported serving target, and PP is explicitly gated off upstream, so PP4 is
+  unsupported there. TP4 on this node is plausible/untested and carries a
+  material performance risk: four PCIe GPUs without P2P cannot use vLLM custom
+  all-reduce (unsupported for this topology; must be disabled), leaving
+  host-routed TP collectives. Any community SM80 backport (e.g. the wtdcode
+  backport image, which registers Glm5Next) is a separate third-party artifact
+  and is not upstream vLLM; its own review/pin precedes any use.
+- Compressed-tensors mixed schemes: per-target config_groups dispatch and the
+  WNA16 MoE backend (vLLM PR 48918, merged) exist in main; loader references
+  inspected in main compressed_tensors.py.
 
 ## Execution status and outcome
 
-Nothing executed. This note is the static feasibility gate requested by
-issue #66. No quantization run, no download, no GPU lease, no upload.
+Nothing executed. Static feasibility gate only: no quantization run, no
+download, no GPU lease, no upload.
 
-## Blocker (to unlock gates 2-5)
+## Blockers (to unlock gates 2-5)
 
-1. A working Glm5Next serving path requires vLLM PR 53906, currently open
-   and merge-blocked. Open runtime bugs against it: #54317 (illegal memory
-   access in KDA path on multi-GPU) and #54458 (hybrid KV page alignment
-   inflates block usage). Re-check both at pin time.
-2. No mixed W4A16/W8A16 Glm5Next CT checkpoint exists publicly; producing
-   one requires an explicit quantization-resource lease (GPU/CPU time and
-   roughly 340 GB scratch on shared storage) and is out of scope for this
-   repo-only gate.
+1. Serving path: upstream 53906 is open/merge-blocked and does not cover SM80
+   serving; a separately reviewed community backport is required, pinned and
+   license-checked, before any gate 3 work.
+2. No mixed W4A16/W8A16 Glm5Next CT checkpoint exists publicly; producing one
+   requires an explicit quantization-resource lease. Peak host storage at
+   emit time must plan for the pinned fp8 source (328,337,455,672 B /
+   305.8 GiB) plus the output artifact (~170.5 GB) plus toolchain temporaries;
+   a toolchain-specific peak estimate (host RAM + scratch) is produced at
+   gate 2, not assumed here. The earlier ~340 GB scratch figure was
+   unsupported.
 
 ## Gates pending explicit resource lease
 
-- Gate 2: pin 53906 head + llm-compressor revision; write mixed-scheme
-  recipe; run compressor on a CPU/dense-only subset first.
-- Gate 3: bounded TP=4 boot smoke on the four-card CMP lease with capped
-  max-model-len, gpu-memory-utilization 0.85, stop on any Xid or thermal
-  limit.
+- Gate 2: pin 53906 head (or chosen backport) + llm-compressor revision; write
+  the mixed-scheme recipe with the exact config_groups from the paragraph
+  above; run the compressor on a CPU/dense-only subset first; measure peak
+  host RAM/disk.
+- Gate 3: bounded TP=4 boot smoke on the four-card CMP lease, capped
+  max-model-len, gpu-memory-utilization 0.85, stop on any Xid or thermal limit.
 - Gate 4: quality spot-check (structured + prose buckets from the existing
   Phase C harness) versus the UD-IQ4_XS baseline receipts.
 - Gate 5: only if gate 4 shows a correctness or latency win versus the
@@ -90,15 +121,15 @@ issue #66. No quantization run, no download, no GPU lease, no upload.
 
 ## Evidence
 
-- vLLM PR 53906 (Glm5Next, open/blocked): https://github.com/vllm-project/vllm/pull/53906
+- Official pinned model: https://huggingface.co/zai-org/GLM-5.3-Flash/tree/04c4e9e95c5da8862dced7e5056455116f83a7e0
+- Official pinned config: https://huggingface.co/zai-org/GLM-5.3-Flash/blob/04c4e9e95c5da8862dced7e5056455116f83a7e0/config.json
+- vLLM PR 53906 (open/blocked; SM90/100/120 paths): https://github.com/vllm-project/vllm/pull/53906
 - vLLM PR 48918 (CT WNA16 MoE, merged): https://github.com/vllm-project/vllm/pull/48918
-- vLLM issues #54317 and #54458 (open runtime bugs, linked by number)
+- vLLM issue #54317: https://github.com/vllm-project/vllm/issues/54317
+- vLLM issue #54458: https://github.com/vllm-project/vllm/issues/54458
 - llm-compressor mixed-precision precedent: https://github.com/vllm-project/llm-compressor/pull/2940
-- CT per-target scheme dispatch: vLLM main compressed_tensors.py,
-  get_scheme_dict + _add_fused_moe_to_target_scheme_map (inspected 2026-08-31)
-- Public config.json: https://huggingface.co/zai-org/GLM-5.3-Flash/raw/main/config.json
-- Measured size baseline: results/ in this repository (Phase C receipts,
-  UD-IQ4_XS 156,822,111,075 B).
+- CT per-target scheme dispatch: vLLM main compressed_tensors.py, get_scheme_dict + _add_fused_moe_to_target_scheme_map (inspected 2026-08-31)
+- Measured size baseline: results/ in this repository (Phase C receipts, UD-IQ4_XS 156,822,111,075 B).
 
 ## Re-run instructions
 
