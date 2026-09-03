@@ -8,32 +8,53 @@ diagnosed. Entries are runtime-specific unless noted otherwise.
 
 Full attempt record: [attempts/exl3-4.05bpw-exllamav3/README.md](../attempts/exl3-4.05bpw-exllamav3/README.md).
 
-### Known issue: `Q8` KV cache crashes any request over ~2,048 tokens (DSA sparse attention)
+### Resolved: `Q8` KV cache crashes any request over ~2,048 tokens (DSA sparse attention)
+
+**Status: resolved 2026-09-03.** This was previously an open blocker for
+long-context serving; a follow-up investigation found the exact root cause
+and validated a fix up to 262,144 tokens of context. Full data:
+[attempts/exl3-4.05bpw-exllamav3/README.md](../attempts/exl3-4.05bpw-exllamav3/README.md#update-2026-09-03--root-cause-found-262144-token-context-validated).
 
 **Symptom:** a single request with a long prompt fails with a 503; the
 server itself stays up and keeps serving other requests.
 
-**Cause:** GLM-5.3-Flash uses DSA (DeepSeek Sparse Attention) with an
-indexer. Per the model's `config.json`, `index_topk: 2048`. In exllamav3's
-`mla_attn.py`, the sparse-attention path activates once
-`max(host_seqlens) + seqlen > index_topk` (in practice, once context
-passes roughly 2,048 tokens), and that path contains an explicit guard:
-`assert qc is None, "sparse DSA over a quantized MLA cache is not
-supported yet; use an fp16 cache"`. A `cache_mode: Q8` server has a
-non-`None` quantized cache, so the assertion fails for any request that
-crosses the threshold.
+**Root cause:** GLM-5.3-Flash uses DSA (DeepSeek Sparse Attention) with an
+indexer. Per the model's `config.json`, `index_topk: 2048`. In exllamav3
+1.4.6's `exllamav3/modules/mla_attn.py`:
 
-**Fix / workaround:** use `cache_mode: FP16` for any deployment that must
-serve requests over ~2,048 tokens of context. This is unfixed at the
-exllamav3 1.4.6 level; there is no server-side flag that avoids the
-threshold check while keeping a quantized cache.
+- Sparse attention activates once `max(host_seqlens) + seqlen >
+  self.index_topk` (line 765) — intended DSA behavior, not a bug, on a
+  model that natively supports up to 1,048,576 tokens
+  (`max_position_embeddings` in `config.json`).
+- The sparse-attention code path asserts it cannot run against a quantized
+  KV cache: `assert qc is None, "sparse DSA over a quantized MLA cache is
+  not supported yet; use an fp16 cache"` (`_attend_sparse`, ~line 906).
+- `qc` is only non-`None` when `cache_mode` is `Q8`/`Q6`/`Q4` (i.e.
+  `CacheLayer_MLA_quant`). With `cache_mode: FP16`
+  (`CacheLayer_MLA_fp16`), `qc = None` and the sparse path works fine.
+
+**Conclusion: the cap came from `cache_mode: Q8` colliding with the DSA
+indexer window — not from `max_seq_len`, and not from TabbyAPI's
+chunk-size or max-input settings.**
+
+**Fix:** set `cache_mode: FP16` (also raise `max_seq_len` / `cache_size`
+to `262144` and `chunk_size` to `4096` for full long-context headroom;
+`gpu_split` does not need to change). Validated up to 250,000 prompt
+tokens with no OOM and no crash; needle-in-haystack retrieval passed at
+32k and 250k tokens. Boot time approximately 2.5 minutes; per-card memory
+after load stayed comfortably under 64 GiB (46,230 / 45,456 / 45,488 /
+23,638 MiB across the four cards).
 
 **Trade-off:** `cache_mode: FP16` increases per-request KV cache memory
-versus `Q8`. In this recipe's measurement, the same `gpu_split: [48, 48,
-48, 48]` still fit with headroom under FP16 for a single request, but this
-was not load-tested end-to-end at concurrency — treat FP16-cache
-long-context serving as future work, not a validated production
-recommendation, until it is.
+versus `Q8`, but in practice this cost almost nothing extra — memory grew
+only about 2 GiB total across all four cards going from 16k to 250k tokens
+of context, because the MLA/DSA cache is cheap per token and this model's
+hybrid linear-attention layers carry O(1) state that does not grow with
+context. `cache_mode: FP16` / 262144-token context is now the recommended
+default for this recipe when long context matters; keep the `Q8` /
+32768-token config only when the lower VRAM footprint matters more.
+**Not re-tested in this update:** the full C1/C2/C4/C8 throughput ladder
+at 262k context — only prefill/context-length behavior was re-verified.
 
 ### Failure mode 1: even `gpu_split` at full per-card VRAM OOMs on first inference, not load
 

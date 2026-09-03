@@ -3,6 +3,47 @@
 Dated entries for publishable changes to this repository. See `attempts/`
 for full per-attempt records and `results/` for raw evidence.
 
+## 2026-09-03 (follow-up)
+
+- **Resolved the ~2,048-token context cap** documented earlier the same
+  day for row 7 (EXL3 4.05bpw / exllamav3 1.4.6 / TabbyAPI). Root cause:
+  GLM-5.3-Flash's DSA (DeepSeek Sparse Attention) indexer
+  (`index_topk: 2048` in `config.json`) triggers exllamav3's sparse
+  attention path once context exceeds roughly 2,048 tokens, and that path
+  asserts `qc is None` — it cannot run against a quantized (`Q8`/`Q6`/`Q4`)
+  MLA cache. With `cache_mode: FP16`, `qc = None` and sparse attention
+  works correctly. The cap was never a `max_seq_len` or TabbyAPI
+  chunk/max-input limitation.
+- Booted the server with `cache_mode: FP16`, `max_seq_len` /
+  `cache_size: 262144`, `chunk_size: 4096`, `gpu_split` unchanged at
+  `[48, 48, 48, 48]`. Boot succeeded on the first attempt, approximately
+  2.5 minutes from local NVMe. Per-card memory after load: GPU0=46,230,
+  GPU1=45,456, GPU2=45,488, GPU3=23,638 MiB (19-42 GiB headroom per card).
+- Ran a prefill ladder (max_tokens=1, tokenizer-exact prompt lengths, one
+  continuously-booted server, no restart between steps) at 2,941 / 16,000
+  / 32,000 / 65,000 / 131,000 / 200,000 / 250,000 prompt tokens. All
+  passed, no OOM, no crash. **Largest verified prompt: 250,000 tokens.**
+  Prefill time drops past 131k tokens because DSA's fixed top-k=2048
+  indexer caps attention cost regardless of total context length — flagged
+  as an open question, not a definitively explained regression. Memory
+  stayed essentially flat from 16k tokens onward (~2 GiB total growth
+  across all four cards from 16k to 250k tokens).
+- Ran needle-in-haystack retrieval at 32k and 250k tokens: both **PASS**.
+- No Xid or ECC (including double-bit) events at any point in the ladder
+  (`nvidia-smi -q` and `dmesg`); peak temperature 51 degrees C; server
+  process stayed up throughout, no driver reload needed.
+- **`cache_mode: FP16` / 262,144-token context is now the recommended
+  default config** for this recipe whenever long context matters. The
+  `cache_mode: Q8` / 32,768-token config remains documented as the
+  lower-VRAM short-context alternative. The full C1/C2/C4/C8 throughput
+  ladder was **not** re-run at 262k context in this update — only
+  prefill/context-length behavior was re-tested.
+- Updated
+  [attempts/exl3-4.05bpw-exllamav3/README.md](attempts/exl3-4.05bpw-exllamav3/README.md),
+  [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md), and the row-7 entry
+  in this repository's [README.md](README.md) comparison table to reflect
+  the resolved status.
+
 ## 2026-09-03
 
 - Added the first successful **comparison-table** row (row 7): GLM-5.3-Flash
