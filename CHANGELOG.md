@@ -3,6 +3,22 @@
 Dated entries for publishable changes to this repository. See `attempts/`
 for full per-attempt records and `results/` for raw evidence.
 
+## 2026-09-03 (power cap correction)
+
+- **Found and fixed a power-cap error in the 2026-09-02 benchmark ladder.**
+  The ladder ran at the vBIOS default 250 W by accident, not the club's
+  standing 180 W per-card cap.
+- Re-measured the identical protocol (greedy, 400 completion tokens,
+  1 warmup + 3 reps, C1/C2/C4/C8; 2,941-token prefill x3; TTFT x3;
+  power/temperature at 1 Hz) against the same running server, no restart,
+  at the verified 180 W cap.
+- Result: 25.2-44.6 tok/s at 180 W versus 26.9-44.8 tok/s at 250 W. The
+  per-level delta (C1 -6.3%, C2 +13.5%, C4 +3.6%, C8 -0.4%) reads as
+  run-to-run noise, not a directional power effect.
+- **180 W numbers are now canonical** in the README, the attempt record,
+  and `results/2026-09-03-exl3-4.05bpw-exllamav3/`. The 250 W numbers are
+  retained alongside them for comparison, not deleted.
+
 ## 2026-09-03 (follow-up)
 
 - **Resolved the ~2,048-token context cap** documented earlier the same

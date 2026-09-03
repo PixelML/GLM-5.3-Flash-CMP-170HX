@@ -98,7 +98,15 @@ underfull. Four splits were tried before one worked:
 ### Benchmark ladder
 
 Greedy decoding, exactly 400 completion tokens per request, 1 warmup
-repetition plus 3 measured repetitions, at concurrency 1/2/4/8:
+repetition plus 3 measured repetitions, at concurrency 1/2/4/8.
+
+**Power cap correction (2026-09-03):** the run below (2026-09-02) executed
+at the vBIOS default 250 W by accident — no per-card cap had been set that
+session. A same-server, no-restart re-measure at the verified 180 W
+club-standard cap is documented under "Power cap correction (2026-09-03)"
+below. 180 W is the canonical cap; **the table below is the original 250 W
+run, retained for its own record** — see the correction section for the
+180 W canonical numbers and the full comparison.
 
 | Concurrency | Aggregate tok/s (mean of 3 reps) | Mean per-request tok/s |
 |---|---:|---:|
@@ -263,13 +271,90 @@ steps, and the GPU driver was never reloaded (none was needed).
 
 Only prefill/context-length behavior was re-tested in this update. The
 full C1/C2/C4/C8 throughput ladder was **not** re-run at 262k context —
-the 26.9-44.8 tok/s figures above remain the short-context (`Q8` cache)
-measurement. No throughput regression was observed at short context during
-this update's testing, but that is not the same claim as a re-run ladder.
+the 25.2-44.6 tok/s figures (180 W, canonical; 26.9-44.8 tok/s at 250 W,
+comparison) remain the short-context (`Q8` cache) measurement. No
+throughput regression was observed at short context during this update's
+testing, but that is not the same claim as a re-run ladder.
+
+### Power cap correction (2026-09-03)
+
+The 2026-09-02 benchmark ladder and prefill/power measurements above ran
+at the vBIOS default 250 W by accident — no per-card power cap had been
+set that session. The club's standing policy is a 180 W cap, verified with
+`nvidia-smi --query-gpu=power.limit --format=csv` before any measurement.
+
+On 2026-09-03 the identical protocol was re-run against the same standing
+server (not restarted): greedy, exactly 400 completion tokens, 1 warmup +
+3 measured reps, C1/C2/C4/C8; prefill at a 2,941-token prompt (2,954
+tokens post chat-template) x3; TTFT x3; power and temperature at 1 Hz on
+all four cards, after confirming 180.00 W on all four cards.
+
+**Concurrency ladder, 180 W (verified cap, canonical):**
+
+| Concurrency | Aggregate tok/s (mean of 3 reps) | Mean per-request tok/s |
+|---|---:|---:|
+| C1 | 25.2 | 25.2 |
+| C2 | 35.3 | 18.0 |
+| C4 | 43.2 | 11.0 |
+| C8 | 44.6 | 8.2 |
+
+**Comparison: 250 W (2026-09-02, accidental default) vs. 180 W (2026-09-03, verified cap):**
+
+| Level | 250 W aggregate tok/s | 180 W aggregate tok/s | Delta |
+|---|---:|---:|---:|
+| C1 | 26.9 | 25.2 | -6.3% |
+| C2 | 31.1 | 35.3 | +13.5% |
+| C4 | 41.7 | 43.2 | +3.6% |
+| C8 | 44.8 | 44.6 | -0.4% |
+
+Each cap has one run of three reps, not five; the C2 gap is larger than
+the other three levels and is best read as run-to-run noise rather than a
+real power effect, consistent with the DeepSeek-V4-Flash-Vision-Exp
+finding on this same fleet that a 70 W cap difference does not move
+decode throughput outside noise at low concurrency. No level shows a
+directional, monotonic speed penalty from the lower cap.
+
+**Prefill / TTFT, 180 W:**
+
+| Rep | Prompt tokens | Prompt time (s) | Prefill tok/s |
+|---|---:|---:|---:|
+| 0 (cold) | 2,954 | 0.44 | 313.6 |
+| 1 (warm) | 2,954 | 0.39 | 353.9 |
+| 2 (warm) | 2,954 | 0.38 | 363.2 |
+
+Warm mean (reps 1-2): 358.5 tok/s — comparable to the 2026-09-02 warm
+figure (~354 tok/s); prefill throughput is not power-cap sensitive at this
+prompt length either. TTFT (same prompt, streaming, wall time to first
+content-bearing chunk): 0.73 s / 1.41 s / 1.78 s across three reps; treat
+as a range, not a point estimate.
+
+**Verdict: no standing-config change.** 180 W remains the correct cap;
+measured decode throughput at 180 W is statistically indistinguishable
+from the earlier (accidental) 250 W run. The 180 W numbers are published
+as canonical throughout this recipe; the 250 W numbers are retained,
+labeled, for comparison — not deleted.
 
 ### Power
 
-Measured during a C4 load run, 1-second samples over 60 seconds:
+**180 W (verified cap, canonical), 1 Hz samples across the full ladder +
+prefill/TTFT window (~10.5 min, 565 samples):**
+
+| GPU | Mean W | Peak W | Peak temp (C) |
+|---|---:|---:|---:|
+| 0 | 56.7 | 139.5 | 51 |
+| 1 | 58.8 | 172.6 | 49 |
+| 2 | 56.4 | 168.4 | 49 |
+| 3 | 49.8 | 102.5 | 45 |
+| **Total** | **221.6** | **352.4** | — |
+
+No Xid or ECC events. Peak per-card power (172.6 W) stayed under the
+180 W cap at every sample; the observed total peak (352.4 W) is a
+coincident-peak artifact of summing each card's own peak moment, not a
+real 4-card simultaneous draw — no single 1 s sample summed above 302 W
+across all four cards.
+
+**250 W (2026-09-02, accidental default, retained for comparison),
+measured during a C4 load run, 1-second samples over 60 seconds:**
 
 | GPU | Mean W | Peak W |
 |---|---:|---:|
