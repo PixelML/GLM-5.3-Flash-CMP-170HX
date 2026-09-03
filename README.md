@@ -29,7 +29,7 @@ repository for full node documentation.
 | 4 | [zai-org/GLM-5.3-Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) (official FP8) and [BF16](https://huggingface.co/zai-org/GLM-5.3-Flash-BF16) | >= ~328 GB FP8; BF16 larger (community-reported) | FP8 / BF16 | any | n/a — memory | **No fit** — ~76+ GiB/card at TP=4 (FP8; BF16 larger) | **Failed** (static fit) | Size alone, at either topology | [attempt record](attempts/fp8-bf16-reference/README.md) |
 | 5 | Future: true 3-bit / W4A16-with-exclusions <= ~55 GiB per card | — | AWQ/GPTQ W4A16-class | upstream vLLM, pending `glm5_next` support | **Untested** — depends on upstream runtime work | Would fit at TP=4 (inferred); the AWQ row above already fits on paper at 4 cards | **Not attempted** | Runtime blocker, not size, on the 4-card node | [attempt record](attempts/future-small-quant/README.md) |
 | 6 | [Intel/GLM-5.3-Flash-W4A16-AutoRound](https://huggingface.co/Intel/GLM-5.3-Flash-W4A16-AutoRound) @ `5eee1846f0321058ed73745f9aa16f2aaf0fc0a0` | **181,505,393,058 B = 169.04 GiB** (measured, HF API blob sizes, 34 shards + extra-tensor files) | W4A16, AutoRound, 4-bit | upstream vLLM (if `glm5_next` were supported) | **No** — same runtime blocker as rows 1 and 3; registry re-checked 2026-09-02, still zero `glm5_next` entries; PR #53906 still open, SM90+ only | ~42.3 GiB/card at TP=4 — fits on paper (measured blob sizes), ~21.7 GiB/card headroom | **Not attempted, registry-blocked before download** (2026-09-02) | `glm5_next` absent from upstream vLLM registry, on any GPU architecture; no SM80 path exists or is planned | [attempt record](attempts/w4a16-autoround-vllm/README.md) |
-| 7 | [turboderp/GLM-5.3-Flash-exl3](https://huggingface.co/turboderp/GLM-5.3-Flash-exl3) branch `4.05bpw` @ `2a30229e67012798ba9f0cd832bb78abf4c363d5` | **165,151,555,504 B = 153.81 GiB** (measured, download manifest, 31 manifest files) | EXL3, 4.05 bpw | exllamav3 1.4.6+cu128.torch2.10.0 via TabbyAPI | **Yes — measured**. First row in this table to reach sustained, multi-request serving on CMP 170HX itself (a separate GGUF/llama.cpp pairing served earlier off-table; see "Current conclusion" below) | Fits: 153.81 GiB weights across 4x64 GiB = 256 GiB, at manual `gpu_split: [48, 48, 48, 48]` GiB/card (measured; `tensor_parallel` raises `NotImplementedError` on this architecture, so manual `gpu_split` is required) | **Success** — server booted, all gates passed, full benchmark ladder run (26.9-44.8 tok/s aggregate, C1-C8) | None for short context (<= 2,048 tokens). For long context: exllamav3 1.4.6 crashes any request over ~2,048 tokens under a quantized (Q8) KV cache — DSA sparse attention asserts against a quantized MLA cache; requires `cache_mode: FP16`, unvalidated at concurrency | [attempt record](attempts/exl3-4.05bpw-exllamav3/README.md), [results](results/2026-09-03-exl3-4.05bpw-exllamav3/README.md) |
+| 7 | [turboderp/GLM-5.3-Flash-exl3](https://huggingface.co/turboderp/GLM-5.3-Flash-exl3) branch `4.05bpw` @ `2a30229e67012798ba9f0cd832bb78abf4c363d5` | **165,151,555,504 B = 153.81 GiB** (measured, download manifest, 31 manifest files) | EXL3, 4.05 bpw | exllamav3 1.4.6+cu128.torch2.10.0 via TabbyAPI | **Yes — measured**. First row in this table to reach sustained, multi-request serving on CMP 170HX itself (a separate GGUF/llama.cpp pairing served earlier off-table; see "Current conclusion" below) | Fits: 153.81 GiB weights across 4x64 GiB = 256 GiB, at manual `gpu_split: [48, 48, 48, 48]` GiB/card (measured; `tensor_parallel` raises `NotImplementedError` on this architecture, so manual `gpu_split` is required) | **Success** — server booted, all gates passed, full benchmark ladder run (26.9-44.8 tok/s aggregate, C1-C8); **long-context follow-up (2026-09-03): validated 262,144-token context (250,000 prompt tokens tested) with `cache_mode: FP16`** | None. The original ~2,048-token cap under `cache_mode: Q8` was root-caused (2026-09-03) to DSA sparse attention asserting against a quantized MLA cache, and resolved by switching to `cache_mode: FP16` — now the recommended default for long-context use; throughput ladder at 262k context not yet re-run | [attempt record](attempts/exl3-4.05bpw-exllamav3/README.md), [results](results/2026-09-03-exl3-4.05bpw-exllamav3/README.md) |
 
 Quantization legend: NVFP4 = NVIDIA 4-bit floating point; EXL3/TR3 = TurboDerp
 3-bit-class quant with group-wise codebooks; AWQ = activation-aware weight
@@ -102,6 +102,19 @@ node, and were not re-run for this update:**
   This is not a claim that SGLang is terminal — it is simply undocumented
   here. TODO: a future attempt record should evaluate SGLang against this
   architecture on SM80 before this repository can state a status for it.
+
+**Same-day follow-up (2026-09-03): the ~2,048-token context cap on row 7
+is resolved.** A root-cause investigation found that the cap came from
+`cache_mode: Q8` colliding with the model's DSA sparse-attention indexer,
+not from `max_seq_len` or TabbyAPI settings. Switching to `cache_mode:
+FP16` (with `max_seq_len`/`cache_size: 262144`, `chunk_size: 4096`,
+`gpu_split` unchanged) validated context up to 262,144 tokens (250,000
+prompt tokens actually tested), with passing needle-in-haystack retrieval
+at 32k and 250k tokens and no OOM, crash, or Xid/ECC events anywhere in
+the ladder. `cache_mode: FP16` is now the recommended default for this
+recipe whenever long context matters; the `Q8`/32k config remains
+documented as a lower-VRAM short-context alternative. See
+[attempts/exl3-4.05bpw-exllamav3/README.md](attempts/exl3-4.05bpw-exllamav3/README.md#update-2026-09-03--root-cause-found-262144-token-context-validated).
 
 ## License
 
