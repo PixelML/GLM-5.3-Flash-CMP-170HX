@@ -1,0 +1,169 @@
+{
+  "experiment": "2026-09-05-pp4-mtp3-vllm-sm80",
+  "date": "2026-09-05",
+  "status": "measured",
+  "release_state": "research preview",
+  "supersedes": "results/2026-09-03-glm-5.3-flash-vllm-sm80-4gpu",
+  "model": {
+    "name": "GLM-5.3-Flash",
+    "checkpoint": "wtdcode/GLM-5.3-Flash-AWQ-W4A16",
+    "revision": "abd7b07719111f137e1de8a0c1b7e01c11b74d1a",
+    "quantization": "AWQ W4A16 (compressed-tensors)",
+    "files": 24,
+    "bytes": 190843146533,
+    "byte_verified": true,
+    "relation": "third-party-verified",
+    "hidden_layers": 45,
+    "sparse_mla_layers": 11
+  },
+  "runtime": {
+    "image": "ghcr.io/pixelml/club-170hx:vllm-glm53-sm80-pp-20260905",
+    "image_index_digest": "sha256:62f612b49614523e6a46e1493d35d3efd1f363917129d38cc923a31053693bfb",
+    "source_repo": "PixelML/sm80vllm",
+    "source_branch": "pp-dflash2/glm53-flash-487ecf187-20260905",
+    "base_image": "vllm/vllm-openai:glm53-flash",
+    "base_commit": "487ecf187",
+    "ported_patches": 24,
+    "patch_source": "https://github.com/promisezackr/glm53-flash-170hx-pp8",
+    "patch_source_license": "Apache-2.0",
+    "recipe_script": "recipes/glm53-flash-4x170hx-pp4.sh"
+  },
+  "hardware": {
+    "class": "four-card CMP 170HX node",
+    "compute_capability": "sm80",
+    "cards": 4,
+    "gib_per_card": 64,
+    "power_limit_w_per_card": 180,
+    "nvlink": false,
+    "p2p_over_pcie": false,
+    "link_state": "degraded: one card at PCIe Gen1 x1 against a slot ceiling of x8, one at x8, two at x16",
+    "link_state_effect": "aggregate, prefill and TTFT cells are lower bounds; c=1 decode is link-insensitive under PP4"
+  },
+  "topology": {
+    "mode": "PP4",
+    "pp_layer_partition": [14, 12, 12, 7],
+    "sparse_mla_per_stage": [3, 3, 3, 2],
+    "gib_per_stage_after_load": 45.45
+  },
+  "serving": {
+    "max_model_len": 393216,
+    "kv_pool_tokens": 1194627,
+    "kv_pool_multiple_of_max_len": 3.04,
+    "kv_dtype": "auto",
+    "gpu_memory_utilization": 0.90,
+    "prefix_caching": false,
+    "micro_batch_cap": 2,
+    "sidecar_block_size": 256,
+    "limit_mm_per_prompt": {"image": 0, "video": 0},
+    "limit_mm_reason": "node workaround: one card position drops off the bus under the multimodal profiling power transient; text-only; leaves the vision path unmeasured"
+  },
+  "speculation": {
+    "method": "mtp",
+    "num_speculative_tokens": 3,
+    "depths_swept": [2, 3, 5, 7],
+    "acceptance_source": "vllm:spec_decode_* counters differenced across each measurement window"
+  },
+  "boot": {
+    "seconds": 1029,
+    "engine_init_seconds": 320.4,
+    "boots_served": 3,
+    "boots_attempted": 3,
+    "boot_seconds_all": [1029, 1025, 1046]
+  },
+  "protocols": {
+    "P1": {
+      "harness": "scripts/bench.py from promisezackr/glm53-flash-170hx-pp8, unmodified",
+      "temperature": 0,
+      "max_tokens": 512,
+      "reps": 3,
+      "aggregation": "median",
+      "workloads": ["code", "json", "counting", "math", "prose", "repetition"],
+      "degeneracy_guard": "upstream repeat guard; flagged cells are inflated and excluded from headline figures"
+    },
+    "P2": {
+      "harness": "bench_glm53.py",
+      "temperature": 0.7,
+      "ignore_eos": true,
+      "max_tokens": 512,
+      "reps": 5,
+      "aggregation": "median, first rep cold"
+    },
+    "token_counting": "final usage object of each response, never a count of stream events"
+  },
+  "headline": {
+    "decode_c1_p1_tok_s": 87.55,
+    "decode_c1_p1_workload": "math",
+    "decode_c1_p1_clean": true,
+    "decode_c1_p2_median_tok_s": 67.91,
+    "decode_c1_p2_peak_tok_s": 92.58,
+    "decode_c1_p2_cold_tok_s": 56.32,
+    "best_aggregate_tok_s": 78.36,
+    "best_aggregate_concurrency": 16,
+    "best_aggregate_link_bound": true,
+    "prefill_tok_s_16k": 1751.83,
+    "prefill_link_bound": true,
+    "warm_ttft_s_16k": 9.4399,
+    "warm_ttft_s_4k": 3.6749,
+    "ttft_link_bound": true,
+    "longest_context_measured_prompt_tokens": 131042,
+    "decode_flat_range_tok_s": [74.85, 81.51],
+    "decode_flat_range_prompt_tokens": [2024, 131042]
+  },
+  "depth_sweep": [
+    {"k": 2, "p1_best_clean_tok_s": 81.89, "p1_best_clean_workload": "counting", "p2_median_tok_s": 56.54, "drafts": 7352, "draft_tokens": 14704, "accepted_tokens": 10885, "acceptance_rate": 0.740, "mean_accepted_length": 2.48},
+    {"k": 3, "p1_best_clean_tok_s": 87.55, "p1_best_clean_workload": "math", "p2_median_tok_s": 67.91, "drafts": 3921, "draft_tokens": 11763, "accepted_tokens": 7690, "acceptance_rate": 0.654, "mean_accepted_length": 2.96, "record": true},
+    {"k": 5, "p1_best_clean_tok_s": 82.10, "p1_best_clean_workload": "json", "p2_median_tok_s": 51.26, "drafts": 5422, "draft_tokens": 27110, "accepted_tokens": 12641, "acceptance_rate": 0.466, "mean_accepted_length": 3.33},
+    {"k": 7, "p1_best_clean_tok_s": 91.44, "p1_best_clean_workload": "math", "p2_median_tok_s": 38.13, "drafts": 5106, "draft_tokens": 35742, "accepted_tokens": 13321, "acceptance_rate": 0.373, "mean_accepted_length": 3.61}
+  ],
+  "negative_results": [
+    {
+      "name": "DFlash2 k=7 on the AWQ W4A16 checkpoint",
+      "verdict": "net loss",
+      "receipt": "receipts/awq-dflash7/",
+      "drafter": "incoai/GLM-5.3-Flash-DFlash2",
+      "drafter_license": "cc-by-nc-nd-4.0",
+      "drafter_use": "measurement only, not redistributed",
+      "acceptance_rate": 0.416,
+      "mean_accepted_length": 3.91,
+      "kv_pool_tokens": 523657,
+      "clean_text_on_code": false,
+      "note": "a large win on the upstream author's NVFP4 checkpoint; the main reason the upstream headline figure does not reproduce here"
+    },
+    {"name": "PP4 + MTP k=5, stock build", "decode_c1_tok_s": 3.35, "verdict": "degenerate text, MTP-under-PP artifact"},
+    {"name": "PP4, speculation off, stock build", "decode_c1_tok_s": 6.11, "verdict": "clean text, base pipeline hand-off collapse"},
+    {"name": "PP + DFlash2, stock build", "verdict": "refused at init; aux hidden-state layers cannot all live on the last pipeline stage; failed before any GPU memory allocation"},
+    {"name": "TP + DFlash2, stock build", "verdict": "refused at KV-cache setup; MLA indexer page size cannot be padded; identical with and without prefix caching"},
+    {"name": "autotune-off combined with MTP on the TP4 build", "verdict": "CUDA launch failure at engine startup, wedges a card at the PCIe level"}
+  ],
+  "superseded_result": {
+    "topology": "TP4",
+    "decode_c1_p2_median_tok_s": 60.4,
+    "best_aggregate_tok_s": 37.0,
+    "best_aggregate_concurrency": 8,
+    "reason": "tensor parallelism runs at the width of its worst rank on a fabric with no NVLink; the identical recipe measured 70.5 tok/s before one card's link retrained narrow and 14.4 tok/s after, while PP4 held 60.8 tok/s on the same box"
+  },
+  "untested": [
+    {"cell": "lossless check (greedy, speculation on vs off, 20 fixed prompts)", "reason": "needs a speculation-off boot to diff against"},
+    {"cell": "sustained stability (3 rounds of c=8 with health checks)", "reason": "not yet run"},
+    {"cell": "quality battery per bucket", "reason": "not yet run on this recipe"},
+    {"cell": "power and temperature under load", "reason": "not sampled on this boot"},
+    {"cell": "NVFP4 checkpoint, PP4 + MTP k=3", "reason": "first boot in flight"},
+    {"cell": "NVFP4 checkpoint, PP4 + DFlash2 k=7", "reason": "the decisive test separating drafter quality from drafter/checkpoint mismatch"},
+    {"cell": "thinking-switch verification", "reason": "the probe returned no reasoning_content in any arm and the two sweep arms are statistically identical"},
+    {"cell": "accepted tokens per pass vs context length", "reason": "no SpecDecoding metrics interval line fell inside a sample window during the sweep"},
+    {"cell": "258k-token context point", "reason": "prompt calibration overshot the 393,216-token limit"},
+    {"cell": "BF16 parity", "reason": "no host in this pool can load the BF16 checkpoint"},
+    {"cell": "vision path", "reason": "the recipe disables multimodal profiling as a node workaround"},
+    {"cell": "A100-class comparison", "reason": "no A100 in the pool"}
+  ],
+  "sanitization": {
+    "applied": true,
+    "rules": "http(s) URLs -> <endpoint>, absolute filesystem paths -> <path>, IPv4 literals -> <addr>, container names -> <container>",
+    "preserved": "numbers, prompts, model text, protocol fields"
+  },
+  "publication": {
+    "club_notebook": "https://github.com/PixelML/club-170hx/blob/main/notebooks/2026-09-05-glm-5.3-flash-4card-pp4-vllm.ipynb",
+    "club_guide": "https://github.com/PixelML/club-170hx/blob/main/docs/models/glm-5.3-flash.md",
+    "club_chart": "https://github.com/PixelML/club-170hx/blob/main/assets/charts/2026-09-05-glm-5.3-flash-pp4-context-sweep.png"
+  }
+}
