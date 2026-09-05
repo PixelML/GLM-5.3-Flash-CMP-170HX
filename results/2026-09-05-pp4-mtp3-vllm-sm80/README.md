@@ -25,10 +25,10 @@ See [`run-manifest.json`](run-manifest.json) for the machine-readable version.
 | Speculation | native MTP, `num_speculative_tokens=3` |
 | Context | `--max-model-len 393216`; KV pool 1,194,627 tokens (3.04x a single max-length request) |
 | Other flags | `--no-enable-prefix-caching`, `--gpu-memory-utilization 0.90`, `--max-num-seqs 8`, `--max-num-batched-tokens 4096`, `VLLM_PP_MAX_DECODE_REQS_PER_BATCH=2`, `VLLM_GLM5N_SIDECAR_BLOCK_SIZE=256`, `--limit-mm-per-prompt image:0,video:0` |
-| Boot | 5/5 boots served for this recipe: 995, 1,029, 1,077, 1,263, 1,140 s to `Application startup complete`, plus 2/2 on the earlier port run; engine init 320.4 s on the measured boot |
+| Boot | 6/6 boots served for this recipe: 873, 995, 1,029, 1,077, 1,140, 1,263 s to `Application startup complete`, plus 2/2 on the earlier port run; engine init 320.4 s on the throughput boot; the 873 s boot is post-recovery with a warm compile cache |
 | Memory after load | 45.45 GiB per pipeline stage; idle memory 51.6-54.2 GiB per card of 64 GiB |
 | Device health | 4/4 cards at the expected PCI revision before and after every boot; zero Xid, zero ECC. Power cap 180 W verified on all four throughout |
-| Temperature under load | untested — not sampled on this boot |
+| Temperature under load | 48-53 C across the stability rounds |
 
 ## Link state during measurement — read this before quoting any aggregate
 
@@ -142,6 +142,95 @@ tokens. **Link-bound.**
 | 4,096 | 1,128.5 | 3.63 | 3.67 | 3 |
 | 16,384 | 1,751.8 | 9.35 | 9.44 | 3 |
 
+### Sustained stability, power and temperature
+
+Three rounds of c=8 back to back, 2,900-token uncached prompts with a nonce, 256
+output tokens, P2 sampling, health checked after each round. Receipt:
+`receipts/k3/c8_stability.json`.
+
+| Round | Succeeded | Wall s | Aggregate tok/s † | Temp C after | Power W after | Xid lines |
+|---:|---|---:|---:|---|---|---:|
+| 1 | 8/8 | 39.3 | 52.11 | 48-52 | 78.3-170.2 | 0 |
+| 2 | 8/8 | 23.4 | 87.50 | 50-53 | 89.2-201.0 | 0 |
+| 3 | 8/8 | 22.7 | 90.26 | 50-53 | 64.8-215.6 | 0 |
+
+† lower bound, degraded link. **3/3 rounds passed, 24/24 requests succeeded,
+zero Xid, no card dropped.** Throughput rose across rounds because round 1
+carries warmup, so there is no sustained-load degradation.
+
+Power note: the per-card **enforced limit** reads 180.00 W in every sample while
+individual instantaneous readings go to 215.6 W. Read those as point-in-time
+query artifacts, not sustained draw. No integrated energy was recorded, so
+sustained power is untested.
+
+### Quality battery
+
+Run at the **checkpoint's own sampling defaults** from `generation_config.json`
+— temperature 1.0, top_p 0.95, seed 1234, 3,072 max tokens, thinking at the
+model default — not at the greedy throughput settings. Receipt:
+`receipts/k3/quality.json`, which carries every item.
+
+| Bucket | Score | Metric |
+|---|---|---|
+| GSM8K, 50 items | **49/50 = 98.0%** | exact match on the final number |
+| HumanEval, 20 items | **19/20 = 95.0%** | pass@1, executing the reference tests |
+| Structured output, 10 prompts | **10/10 = 100%** | strict JSON parse plus required top-level fields |
+
+Both failures, inspected:
+
+| Bucket | Item | What went wrong |
+|---|---|---|
+| GSM8K | idx 12 (lemon tree) | gold 13, predicted 12 — arithmetic right, break-even year miscounted by one; finish reason `stop`, not a truncation |
+| HumanEval | `HumanEval/10` (`make_palindrome`) | the emitted solution calls a helper it never defines, so the reference test raises `NameError` rather than failing an assertion — an incomplete generation, not a wrong algorithm |
+| Structured output | — | no failures to inspect |
+
+Not covered: long-context retrieval and tool use. **BF16 KL divergence cannot be
+measured on this pool** — no host can load the BF16 checkpoint, so there is no
+reference to diverge against and no parity claim is made.
+
+### Lossless check — no verdict is available, and that is the finding
+
+Same 20 fixed prompts, same server, same boot, temperature 0. Receipts:
+`receipts/lossless/`.
+
+| Comparison | Identical completions | Token-for-token match rate |
+|---|---|---|
+| Speculation on vs itself (noise floor) | 9/20 = 45% | 60.98% |
+| Speculation **off** vs itself (noise floor) | 6/20 = 30% | 50.18% |
+| Speculation on vs speculation off | 2/20 = 10% | 33.59% |
+
+**Greedy output is not reproducible on this stack, and speculation is not the
+cause**: speculation off disagrees with itself on 14 of 20 prompts. Under
+pipeline parallelism the number of accepted draft tokens per step varies with
+batch composition, changing the shape of the verification forward pass and so
+the reduction order in the kernels; the pipeline supplies the rest.
+
+The on-versus-off row sits below both noise floors, so it cannot be read as
+"speculation changes two thirds of the tokens." **No lossless verdict is
+available for this recipe.** Anyone quoting an on-versus-off number from this
+stack without the two control rows beside it is quoting noise.
+
+The three lossless receipts (13:10Z) and the speculation-off throughput receipts
+(13:15Z) landed after the eval driver's gate post for this cell; they are
+**measured, awaiting that gate post**, and should be re-checked against it.
+
+### What the drafter is worth
+
+Speculation-off boot, same recipe and protocols, `--speculative-config` removed.
+Receipts: `receipts/nospec/`.
+
+| Workload (median, tok/s) | MTP k=3 | Speculation off | Uplift |
+|---|---:|---:|---:|
+| counting | 75.69 | 42.88 | 1.77x |
+| json | 87.02 | 42.17 | 2.06x |
+| code | 58.37 *(deg)* | 42.83 | 1.36x |
+| math | 87.55 | 42.94 | 2.04x |
+| prose | 60.54 | 42.91 | 1.41x |
+| **P2 median (5 reps)** | **67.91** | **41.95** | **1.62x** |
+
+Speculation off is flat at 42-43 tok/s on every workload. The drafter is what
+creates the spread between workloads, because acceptance is what varies.
+
 ### Gates
 
 | Gate | Result |
@@ -214,6 +303,28 @@ every case returned a normal answer in `content`. There is no thinking toggle to
 measure on this checkpoint, and the two arms of the context sweep are therefore
 the same configuration measured twice.
 
+### Node fault: never reload the accelerator kernel modules while CUDA processes are being killed
+
+Met once on this lane, mid-measurement. Every card raised a fault whose recovery
+action is an OS-level reboot, and the driver could no longer initialise anywhere
+on the machine — not in a container, not on the host.
+
+**The trap:** the management interface kept reporting every card as healthy,
+because the management library still answers while the compute driver cannot
+initialise. A healthy read there is not evidence the node is usable.
+
+**Cause:** unloading and reloading the kernel modules while CUDA processes were
+still being torn down races the teardown. Module reload is a good recovery for a
+different failure; it must not be reached for while processes holding contexts
+are still dying.
+
+**Rule:** let every CUDA process exit fully, and confirm it, before touching the
+kernel modules. After a fault, check driver initialisation directly rather than
+trusting the management summary. Recovery from this state is a node reboot.
+
+Every number in this directory was measured on healthy cards, before or after
+that fault. The recipe's sixth boot, at 873 s, is the post-recovery one.
+
 ### Do not combine autotune-off with MTP on the TP4 build
 
 `--no-enable-flashinfer-autotune` together with MTP crashes at engine startup
@@ -224,10 +335,9 @@ PCIe level. Autotune at its default is part of the measured recipe.
 
 | Cell | Reason |
 |---|---|
-| Lossless check, greedy, speculation on vs off, 20 fixed prompts | harness written; blocked by the node fault below |
-| Sustained stability, 3 rounds of c=8 with health checks | harness written; blocked by the node fault below |
-| Quality battery per bucket | harness and datasets staged; blocked by the node fault below |
-| Power and temperature under load | not sampled on the measured boot |
+| Lossless verdict | no verdict is available: greedy is not reproducible on this stack with or without speculation |
+| Long-context retrieval and tool-use quality buckets | the battery covered reasoning/math, coding and structured output only |
+| Sustained power (integrated energy) | only point-in-time samples after each stability round were recorded |
 | Accepted tokens per pass vs context length | no `SpecDecoding metrics` interval line fell inside a sample window during the sweep |
 | 258k-token context point | the request exceeded the 393,216-token server limit after prompt calibration |
 | BF16 parity | no host in this pool can load the BF16 checkpoint; quantization quality is compared only against the vendor's published numbers and the other quantizations measured here |
@@ -247,6 +357,10 @@ PCIe level. Autotune at its default is part of the measured recipe.
 | `receipts/k3/conc_sweep.json` | concurrency c=1,2,4,8,16 at 4k prompt |
 | `receipts/k3/prefill_{4096,16384}/{prefill,ttft}.json` | uncached prefill and warm streaming TTFT |
 | `receipts/k3/thinking_probe.json` | thinking-switch probe |
+| `receipts/k3/quality.json` | held-out quality battery, every item |
+| `receipts/k3/c8_stability.json` | 3 rounds of c=8 with health, power and temperature after each |
+| `receipts/lossless/` | self-consistency controls and the on-versus-off comparison |
+| `receipts/nospec/` | speculation-off throughput baseline |
 | `receipts/awq-dflash7/` | the DFlash2-on-AWQ negative cell |
 | `commands.md` | the redacted commands that produced all of the above |
 

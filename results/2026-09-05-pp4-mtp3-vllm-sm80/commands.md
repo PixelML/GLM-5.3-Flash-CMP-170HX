@@ -145,7 +145,59 @@ p95, and success rate are recorded per level.
 # content-bearing chunk
 ```
 
-## 12. Teardown
+## 12. Sustained stability → `receipts/k3/c8_stability.json`
+
+Three rounds of c=8 back to back, 2,900-token uncached prompts with a per-request
+nonce, 256 output tokens, P2 sampling. After **each** round, device health is
+sampled — per-card temperature, instantaneous power, enforced power limit, PCIe
+link width and generation — and the fault log is checked for new entries. The
+verdict is rounds passed and requests succeeded; the aggregate throughput column
+is link-bound and does not carry the verdict.
+
+## 13. Quality battery → `receipts/k3/quality.json`
+
+Run at the **checkpoint's own sampling defaults**, read from its
+`generation_config.json` rather than chosen: temperature 1.0, top_p 0.95, seed
+1234, 3,072 max tokens, thinking left at the model default. A quality battery
+run at the greedy throughput settings would measure a configuration nobody
+serves.
+
+Buckets: GSM8K (50 items, exact match on the final number), HumanEval (20 items,
+pass@1 by executing the reference tests in a subprocess), structured output (10
+prompts, strict JSON parse plus required top-level fields). The receipt carries
+every item, not only the failures, so any score can be recomputed from it.
+
+## 14. Lossless check → `receipts/lossless/`
+
+Run the controls **before** the comparison, or the comparison cannot be read.
+
+```
+# 1. noise floor with speculation ON: the same 20 prompts, twice,
+#    against one server, one boot, temperature 0, fixed seed, 256 output tokens
+#    -> spec_on_a.json, spec_on_b.json, self_consistency.json
+
+# 2. noise floor with speculation OFF: same 20 prompts, twice, same server
+#    -> spec_off_a.json, spec_off_b.json, self_consistency_nospec.json
+
+# 3. only then, on versus off
+#    -> lossless_on_vs_off.json
+```
+
+Each summary records identical completions out of 20 and a token-for-token match
+rate, defined as positions matching over positions compared under greedy
+decoding.
+
+Both control runs disagree with themselves on this stack, so step 3 is reported
+beside them and never on its own. A comparison that cannot clear its own noise
+floor is not a lossless verdict.
+
+## 15. Speculation-off baseline → `receipts/nospec/`
+
+The same P1 and P2 commands from sections 6 and 7, against a boot with
+`--speculative-config` removed and nothing else changed. This is what makes the
+drafter's uplift a measurement rather than an assumption.
+
+## 16. Teardown
 
 ```bash
 docker rm -f <container>
@@ -160,7 +212,7 @@ A caution learned here: the management interface can report every card healthy
 while the driver cannot initialise at all. After a fault, check driver
 initialisation directly rather than trusting the management interface's summary.
 
-## 13. Chart
+## 17. Chart
 
 ```bash
 python3 assets/charts/2026-09-05-glm-5.3-flash-pp4-context-sweep.py

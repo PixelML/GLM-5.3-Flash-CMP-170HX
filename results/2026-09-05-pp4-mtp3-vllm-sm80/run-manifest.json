@@ -86,21 +86,23 @@
   "boot": {
     "seconds": 1029,
     "engine_init_seconds": 320.4,
-    "boots_served": 5,
-    "boots_attempted": 5,
+    "boots_served": 6,
+    "boots_attempted": 6,
     "boot_seconds_all": [
+      873,
       995,
       1029,
       1077,
-      1263,
-      1140
+      1140,
+      1263
     ],
     "additional_port_run_boots": "2/2",
     "idle_gib_per_card": [
       51.6,
       54.2
     ],
-    "power_cap_w_verified": 180
+    "power_cap_w_verified": 180,
+    "fastest_boot_note": "873 s, post-recovery with a warm compile cache"
   },
   "protocols": {
     "P1": {
@@ -261,20 +263,16 @@
   },
   "untested": [
     {
-      "cell": "lossless check (greedy, speculation on vs off, 20 fixed prompts)",
-      "reason": "harness written; blocked by the node fault"
+      "cell": "lossless verdict",
+      "reason": "greedy is not reproducible on this stack with or without speculation, so no comparison can clear a lossless bar"
     },
     {
-      "cell": "sustained stability (3 rounds of c=8 with health checks)",
-      "reason": "harness written; blocked by the node fault"
+      "cell": "long-context retrieval and tool-use quality buckets",
+      "reason": "the battery covered reasoning/math, coding and structured output only"
     },
     {
-      "cell": "quality battery per bucket",
-      "reason": "harness and datasets staged; blocked by the node fault"
-    },
-    {
-      "cell": "power and temperature under load",
-      "reason": "not sampled on the measured boot"
+      "cell": "sustained power (integrated energy)",
+      "reason": "only point-in-time samples after each stability round were recorded"
     },
     {
       "cell": "accepted tokens per pass vs context length",
@@ -308,9 +306,129 @@
     "club_chart": "https://github.com/PixelML/club-170hx/blob/main/assets/charts/2026-09-05-glm-5.3-flash-pp4-context-sweep.png"
   },
   "node_fault_after_measurement": {
-    "when": "after the measurement window on 2026-09-05",
-    "effect": "all four accelerators raised a fault requiring an OS-level recovery action; the driver could no longer initialise anywhere on the node",
-    "misleading_signal": "the management interface still reported the cards as healthy; check driver initialisation, not the management interface",
-    "scope": "every receipt in this directory was written before the fault, on healthy cards"
+    "when": "mid-lane on 2026-09-05, between the throughput cells and the quality/stability/lossless cells",
+    "effect": "every card raised a fault whose recovery action is an OS-level reboot; the driver could no longer initialise anywhere on the machine",
+    "trigger": "the accelerator kernel modules were reloaded while CUDA processes were still being torn down, racing the teardown",
+    "misleading_signal": "the management interface kept reporting every card healthy because the management library still answers while the compute driver cannot initialise",
+    "rule": "let every CUDA process exit fully, and confirm it, before touching the kernel modules; after a fault check driver initialisation directly, not the management summary",
+    "recovery": "node reboot",
+    "scope": "every receipt in this directory was measured on healthy cards, before or after the fault; the 873 s boot is the post-recovery one"
+  },
+  "quality": {
+    "receipt": "receipts/k3/quality.json",
+    "sampling": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "seed": 1234,
+      "source": "checkpoint generation_config.json"
+    },
+    "max_tokens": 3072,
+    "thinking": "enabled (model default)",
+    "buckets": {
+      "gsm8k": {
+        "n": 50,
+        "correct": 49,
+        "score": 0.98,
+        "metric": "exact match on final number"
+      },
+      "humaneval": {
+        "n": 20,
+        "correct": 19,
+        "score": 0.95,
+        "metric": "pass@1 by executing the reference tests"
+      },
+      "structured_output": {
+        "n": 10,
+        "correct": 10,
+        "score": 1.0,
+        "metric": "strict JSON parse plus required top-level fields"
+      }
+    },
+    "inspected_failures": [
+      {
+        "bucket": "gsm8k",
+        "item": "idx 12",
+        "cause": "gold 13, predicted 12 \u2014 arithmetic right, break-even year miscounted by one; finish reason stop, not a truncation"
+      },
+      {
+        "bucket": "humaneval",
+        "item": "HumanEval/10",
+        "cause": "the emitted solution calls a helper it never defines, so the reference test raises NameError rather than failing an assertion \u2014 an incomplete generation, not a wrong algorithm"
+      }
+    ],
+    "not_covered": [
+      "long-context retrieval",
+      "tool use"
+    ],
+    "bf16_parity": "cannot be measured on this pool; no host can load the BF16 checkpoint, so no KL-divergence number is possible and no parity claim is made"
+  },
+  "stability": {
+    "receipt": "receipts/k3/c8_stability.json",
+    "concurrency": 8,
+    "prompt_tokens": 2900,
+    "out_tokens": 256,
+    "rounds_passed": 3,
+    "rounds": 3,
+    "requests_succeeded": 24,
+    "requests_attempted": 24,
+    "aggregate_tok_s_per_round": [
+      52.11,
+      87.5,
+      90.26
+    ],
+    "aggregate_is_link_bound": true,
+    "aggregate_note": "throughput rose across rounds because round 1 carries warmup; no sustained-load degradation",
+    "xid_seen": false,
+    "temp_c_range": [
+      48,
+      53
+    ],
+    "instantaneous_power_w_range": [
+      64.8,
+      215.6
+    ],
+    "enforced_power_limit_w": 180.0,
+    "power_note": "the enforced limit reads 180.00 W in every sample while individual instantaneous readings go to 215.6 W; read those as point-in-time query artifacts, not sustained draw",
+    "integrated_energy": "untested \u2014 not recorded"
+  },
+  "lossless": {
+    "receipts": "receipts/lossless/",
+    "verdict": "no lossless verdict is available",
+    "n_prompts": 20,
+    "temperature": 0,
+    "spec_on_self_consistency": {
+      "identical": 9,
+      "identical_rate": 0.45,
+      "token_match_rate": 0.6098
+    },
+    "spec_off_self_consistency": {
+      "identical": 6,
+      "identical_rate": 0.3,
+      "token_match_rate": 0.5018
+    },
+    "spec_on_vs_spec_off": {
+      "identical": 2,
+      "identical_rate": 0.1,
+      "token_match_rate": 0.3359
+    },
+    "finding": "greedy output is not reproducible on this stack, and speculation is not the cause: speculation off disagrees with itself on 14 of 20 prompts. Under pipeline parallelism the number of accepted draft tokens per step varies with batch composition, changing the shape of the verification forward pass and so the reduction order in the kernels",
+    "consequence": "the on-versus-off row sits below both noise floors and cannot be read as a speculation effect; quoting it without the two control rows is quoting noise",
+    "gate_status": "measured, awaiting the eval driver's gate post for these receipts (written 13:10Z, after the gate post covering this cell)"
+  },
+  "speculation_off_baseline": {
+    "receipts": "receipts/nospec/",
+    "p1_medians_tok_s": {
+      "counting": 42.88,
+      "json": 42.17,
+      "code": 42.83,
+      "math": 42.94,
+      "prose": 42.91,
+      "repetition": 42.88
+    },
+    "p2_median_tok_s": 41.95,
+    "mtp_k3_uplift_p2": 1.62,
+    "mtp_k3_uplift_best_workload": 2.06,
+    "note": "speculation off is flat at 42-43 tok/s on every workload; the drafter creates the spread between workloads because acceptance is what varies",
+    "gate_status": "measured, awaiting the eval driver's gate post (written 13:15Z)"
   }
 }
