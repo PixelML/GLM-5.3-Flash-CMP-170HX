@@ -25,7 +25,7 @@ See [`run-manifest.json`](run-manifest.json) for the machine-readable version.
 | Speculation | native MTP, `num_speculative_tokens=3` |
 | Context | `--max-model-len 393216`; KV pool 1,194,627 tokens (3.04x a single max-length request) |
 | Other flags | `--no-enable-prefix-caching`, `--gpu-memory-utilization 0.90`, `--max-num-seqs 8`, `--max-num-batched-tokens 4096`, `VLLM_PP_MAX_DECODE_REQS_PER_BATCH=2`, `VLLM_GLM5N_SIDECAR_BLOCK_SIZE=256`, `--limit-mm-per-prompt image:0,video:0` |
-| Boot | 6/6 boots served for this recipe: 873, 995, 1,029, 1,077, 1,140, 1,263 s to `Application startup complete`, plus 2/2 on the earlier port run; engine init 320.4 s on the throughput boot; the 873 s boot is post-recovery with a warm compile cache |
+| Boot | **8/8** boots served for this recipe, 795-1,263 s to `Application startup complete`, plus 2/2 on the earlier port run; engine init 320.4 s on the throughput boot; 795 s is the speculation-off boot, 873 s the post-recovery one with a warm compile cache |
 | Memory after load | 45.45 GiB per pipeline stage; idle memory 51.6-54.2 GiB per card of 64 GiB |
 | Device health | 4/4 cards at the expected PCI revision before and after every boot; zero Xid, zero ECC. Power cap 180 W verified on all four throughout |
 | Temperature under load | 48-53 C across the stability rounds |
@@ -66,22 +66,24 @@ counts, not gauges.
 
 ### Draft-depth sweep, c=1, one boot per depth
 
-| | k=2 | **k=3** | k=5 | k=7 |
-|---|---:|---:|---:|---:|
-| P1 counting | 81.89 | 75.69 | 63.73 | 53.40 |
-| P1 json | 84.08 *(deg)* | 87.02 | 82.10 | 78.16 *(deg)* |
-| P1 code | 60.52 | 58.37 *(deg)* | 40.65 | 34.64 |
-| P1 math | 80.88 | **87.55** | 72.52 | 91.44 |
-| P1 prose | 60.73 | 60.54 | 45.74 | 47.30 |
-| P1 repetition *(diagnostic)* | 74.32 | 80.21 | 77.36 | 78.42 *(deg)* |
-| **P1 headline, clean cells only** | 81.89 counting | **87.55 math** | 82.10 json | 91.44 math |
-| **P2 median (5 reps)** | 56.54 | **67.91** | 51.26 | 38.13 |
-| P2 peak / cold rep | 66.53 / 51.95 | 92.58 / 56.32 | 53.56 / 52.13 | 58.81 / 36.67 |
-| Drafts | 7,352 | 3,921 | 5,422 | 5,106 |
-| Draft tokens | 14,704 | 11,763 | 27,110 | 35,742 |
-| Accepted tokens | 10,885 | 7,690 | 12,641 | 13,321 |
-| Draft acceptance rate | 74.0% | 65.4% | 46.6% | 37.3% |
-| Mean accepted length | 2.48 | 2.96 | 3.33 | 3.61 |
+| | k=0 (off) | k=2 | **k=3** | k=5 | k=7 |
+|---|---:|---:|---:|---:|---:|
+| P1 counting | 42.88 | 81.89 | 75.69 | 63.73 | 53.40 |
+| P1 json | 42.17 *(deg)* | 84.08 *(deg)* | 87.02 | 82.10 | 78.16 *(deg)* |
+| P1 code | 42.83 | 60.52 | 58.37 *(deg)* | 40.65 | 34.64 |
+| P1 math | 42.94 | 80.88 | **87.55** | 72.52 | 91.44 |
+| P1 prose | 42.91 | 60.73 | 60.54 | 45.74 | 47.30 |
+| P1 repetition *(diagnostic)* | 42.88 *(deg)* | 74.32 | 80.21 | 77.36 | 78.42 *(deg)* |
+| **P1 headline, clean cells only** | 42.94 math | 81.89 counting | **87.55 math** | 82.10 json | 91.44 math |
+| **P2 median (5 reps)** | 41.95 | 56.54 | **67.91** | 51.26 | 38.13 |
+| P2 peak / cold rep | 42.09 / 41.71 | 66.53 / 51.95 | 92.58 / 56.32 | 53.56 / 52.13 | 58.81 / 36.67 |
+| Drafts | — | 7,352 | 3,921 | 5,422 | 5,106 |
+| Draft tokens | — | 14,704 | 11,763 | 27,110 | 35,742 |
+| Accepted tokens | — | 10,885 | 7,690 | 12,641 | 13,321 |
+| Draft acceptance rate | no drafter | 74.0% | 65.4% | 46.6% | 37.3% |
+| Mean accepted length | 1.00 | 2.48 | 2.96 | 3.33 | 3.61 |
+| KV pool at 393,216 max len | 1,331,200 | — | 1,194,627 | — | — |
+| Boot s | 795 | — | 1,029 | — | — |
 
 All values measured. `(deg)` marks a cell the repeat guard flagged.
 
@@ -199,20 +201,18 @@ Same 20 fixed prompts, same server, same boot, temperature 0. Receipts:
 | Speculation **off** vs itself (noise floor) | 6/20 = 30% | 50.18% |
 | Speculation on vs speculation off | 2/20 = 10% | 33.59% |
 
-**Greedy output is not reproducible on this stack, and speculation is not the
-cause**: speculation off disagrees with itself on 14 of 20 prompts. Under
+**Greedy output is not reproducible on this stack, and the nondeterminism is not
+caused by speculation**: speculation off disagrees with itself on 14 of 20
+prompts, worse than speculation on. Under
 pipeline parallelism the number of accepted draft tokens per step varies with
 batch composition, changing the shape of the verification forward pass and so
 the reduction order in the kernels; the pipeline supplies the rest.
 
 The on-versus-off row sits below both noise floors, so it cannot be read as
 "speculation changes two thirds of the tokens." **No lossless verdict is
-available for this recipe.** Anyone quoting an on-versus-off number from this
-stack without the two control rows beside it is quoting noise.
-
-The three lossless receipts (13:10Z) and the speculation-off throughput receipts
-(13:15Z) landed after the eval driver's gate post for this cell; they are
-**measured, awaiting that gate post**, and should be re-checked against it.
+available for this recipe.** The honest label is **not measurable on this
+stack**: not "failed", and not a percentage. Anyone quoting an on-versus-off
+number from this stack without the two control rows beside it is quoting noise.
 
 ### What the drafter is worth
 
@@ -226,10 +226,23 @@ Receipts: `receipts/nospec/`.
 | code | 58.37 *(deg)* | 42.83 | 1.36x |
 | math | 87.55 | 42.94 | 2.04x |
 | prose | 60.54 | 42.91 | 1.41x |
-| **P2 median (5 reps)** | **67.91** | **41.95** | **1.62x** |
 
 Speculation off is flat at 42-43 tok/s on every workload. The drafter is what
 creates the spread between workloads, because acceptance is what varies.
+
+On the single-prompt P2 protocol the uplift depends on how the five repetitions
+are aggregated. The speculation-off arm is tight enough (41.71-42.09 tok/s) that
+the entire spread comes from which k=3 number is used:
+
+| Aggregation of the 5 P2 reps | MTP k=3 | Speculation off | Uplift |
+|---|---:|---:|---:|
+| **Median of all 5 reps** (the protocol declared above) | **67.91** | **41.95** | **1.62x** |
+| Median of the 4 warm reps | 74.28 | 42.02 | 1.77x |
+| Peak warm rep | 92.58 | 42.09 | 2.20x |
+
+**This result set stands behind 1.62x**, the uplift under the declared protocol
+applied identically to both arms. Higher figures come from the same receipts
+only by aggregating the two arms differently from each other.
 
 ### Gates
 
@@ -302,6 +315,53 @@ false, and also sent no kwarg at all. **No case returned `reasoning_content`**;
 every case returned a normal answer in `content`. There is no thinking toggle to
 measure on this checkpoint, and the two arms of the context sweep are therefore
 the same configuration measured twice.
+
+### NVFP4 is not viable on this hardware
+
+`LibertAIDAI/GLM-5.3-Flash-NVFP4` @ `caca4e6a4ebb` (MIT), attempted twice, same
+failure both times. A **measured negative result**, not a tuning gap.
+
+| Attempt | Settings | Outcome |
+|---|---|---|
+| 1 | util 0.90, max-model-len 393,216, partition 14,12,12,7 | out of memory in the mixture-of-experts kernel-format conversion |
+| 2 | util 0.85, max-model-len 131,072, partition rebalanced to 11,12,12,10 | identical failure, same place |
+
+The conversion asked for 7,247,757,312 bytes with 3.78 GiB free on one card and
+17 MB free on another.
+
+**Why no setting fixes it.** SM80 has no native FP4, so the checkpoint is widened
+on load: about **60 GiB resident per card** against roughly 45 GiB of NVFP4
+weight share on disk. The conversion buffer is allocated during weight load,
+before the KV budget is computed, so neither memory utilisation nor context
+length can move it. A hardware-generation limit on a 4x64 GiB SM80 pool.
+
+**Consequence.** The decisive drafter experiment — the community block drafter on
+the checkpoint it was tuned against — cannot be run on this hardware at all, so
+the drafter/checkpoint-mismatch explanation for the DFlash2 negative result stays
+a well-supported hypothesis that this pool cannot settle.
+
+### A single-process CUDA probe lies about a degraded node
+
+A one-process availability check inside a container returns true while every real
+workload fails at worker start with device-capability or driver-initialisation
+errors. The check can succeed against a driver that can no longer initialise CUDA
+in *spawned* worker processes — exactly what a multi-worker serving stack needs.
+
+**Rule:** probe the way the workload runs — a spawn-based multi-process check
+that initialises a context per device in a child process. Do not read a green
+single-process probe as recovery. This lane was misled by one.
+
+### Stop containers gracefully after an out-of-memory event
+
+An out-of-memory kill leaves workers tearing down for tens of seconds. Stopping
+the container with a grace period on the order of a minute, and only then
+removing it, let the teardown finish and left the node recoverable: driver faults
+stayed limited to memory-management faults from the processes that actually died,
+with no escalation to a reboot-required fault.
+
+The contrasting case is the next section: reaching for a kernel-module reload
+while those same processes were still dying produced the reboot-required wedge.
+Same node, same class of trigger, two outcomes decided by patience.
 
 ### Node fault: never reload the accelerator kernel modules while CUDA processes are being killed
 
