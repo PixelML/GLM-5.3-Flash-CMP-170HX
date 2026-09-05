@@ -50,6 +50,8 @@ docker run -d --name <container> --gpus '"device=0,1,2,3"' \
   -e VLLM_PP_LAYER_PARTITION=14,12,12,7 \
   -e VLLM_WORKER_MULTIPROC_METHOD=spawn \
   -e TORCH_CUDA_ARCH_LIST=8.0 \
+  -e VLLM_PP_MAX_DECODE_REQS_PER_BATCH=2 \
+  -e VLLM_GLM5N_SIDECAR_BLOCK_SIZE=256 \
   -v <weights>:/weights:ro \
   ghcr.io/pixelml/club-170hx:vllm-glm53-sm80-pp-20260905 \
   --model /weights --served-model-name GLM-5.3-Flash \
@@ -57,6 +59,7 @@ docker run -d --name <container> --gpus '"device=0,1,2,3"' \
   --max-model-len 393216 \
   --gpu-memory-utilization 0.90 \
   --no-enable-prefix-caching \
+  --max-num-seqs 8 --max-num-batched-tokens 4096 \
   --speculative-config '{"method":"mtp","num_speculative_tokens":3}' \
   --limit-mm-per-prompt '{"image":0,"video":0}'
 ```
@@ -152,6 +155,10 @@ dmesg --ctime | grep -iE 'xid|nvrm' | tail -20
 
 Health and link state are re-checked after every boot. A depth-sweep row
 measured across a link-state change is not comparable to the rows around it.
+
+A caution learned here: the management interface can report every card healthy
+while the driver cannot initialise at all. After a fault, check driver
+initialisation directly rather than trusting the management interface's summary.
 
 ## 13. Chart
 

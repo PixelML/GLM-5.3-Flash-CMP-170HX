@@ -24,10 +24,10 @@ See [`run-manifest.json`](run-manifest.json) for the machine-readable version.
 | Topology | PP4, `VLLM_PP_LAYER_PARTITION=14,12,12,7` — 45 hidden layers, sparse-MLA counts 3/3/3/2 per stage |
 | Speculation | native MTP, `num_speculative_tokens=3` |
 | Context | `--max-model-len 393216`; KV pool 1,194,627 tokens (3.04x a single max-length request) |
-| Other flags | `--no-enable-prefix-caching`, `--gpu-memory-utilization 0.90`, micro-batch cap 2, sidecar block size 256, `--limit-mm-per-prompt image:0,video:0` |
-| Boot | 1,029 s to `Application startup complete`; engine init 320.4 s; 3/3 boots served for this recipe (1,029 / 1,025 / 1,046 s) |
-| Memory after load | 45.45 GiB per pipeline stage |
-| Device health | 4/4 cards at the expected PCI revision before and after every boot; zero Xid, zero ECC |
+| Other flags | `--no-enable-prefix-caching`, `--gpu-memory-utilization 0.90`, `--max-num-seqs 8`, `--max-num-batched-tokens 4096`, `VLLM_PP_MAX_DECODE_REQS_PER_BATCH=2`, `VLLM_GLM5N_SIDECAR_BLOCK_SIZE=256`, `--limit-mm-per-prompt image:0,video:0` |
+| Boot | 5/5 boots served for this recipe: 995, 1,029, 1,077, 1,263, 1,140 s to `Application startup complete`, plus 2/2 on the earlier port run; engine init 320.4 s on the measured boot |
+| Memory after load | 45.45 GiB per pipeline stage; idle memory 51.6-54.2 GiB per card of 64 GiB |
+| Device health | 4/4 cards at the expected PCI revision before and after every boot; zero Xid, zero ECC. Power cap 180 W verified on all four throughout |
 | Temperature under load | untested — not sampled on this boot |
 
 ## Link state during measurement — read this before quoting any aggregate
@@ -113,9 +113,11 @@ arms alternated within one boot.
 
 Decode is flat at 74.9-81.5 tok/s from 2,024 to 131,042 prompt tokens. Warm TTFT
 equals cold TTFT at every length because the recipe runs with prefix caching
-off. The two thinking arms are statistically identical; the switch is **not yet
-verified** to change the served path on this build, so they are reported as one
-curve.
+off. The two thinking arms are statistically identical because **the switch is
+not switchable on this checkpoint** (`receipts/k3/thinking_probe.json`: no
+`reasoning_content` under `enable_thinking` or `thinking`, true or false, or the
+server default). They are one configuration measured twice, not an A/B, and are
+reported as a single curve.
 
 ### Concurrency, k=3
 
@@ -194,6 +196,24 @@ verdict.
 | PP + DFlash2, stock build | Refused at init: the drafter's auxiliary hidden-state layers (5, 14, 24, 33, 42 of 45) cannot all live on the last pipeline stage under any genuine four-way split, and the aux relay resolves layer names without forwarding hidden states across stages. Needs a real cross-stage relay upstream. Failed before any GPU memory allocation. |
 | TP + DFlash2, stock build | Refused at KV-cache setup, identically with and without prefix caching: page size is not divisible by the maximum page size and cannot be padded for MLA attention layers. Prefix caching is refuted as the trigger. Needs padding support for MLA layers upstream. |
 
+### NVFP4 checkpoint — not claim-ready
+
+`LibertAIDAI/GLM-5.3-Flash-NVFP4` @ `caca4e6a4ebb` (MIT) was attempted on
+2026-09-05 and **did not boot**: out of memory during the mixture-of-experts
+kernel-format conversion. No throughput, quality or acceptance number exists for
+it. This blocks the decisive drafter test — the community block drafter on the
+checkpoint it was tuned against — so the drafter/checkpoint-mismatch hypothesis
+in the negative cell above remains a hypothesis.
+
+### Thinking on vs off — not switchable on this checkpoint
+
+Receipt: `receipts/k3/thinking_probe.json`. The probe sent
+`chat_template_kwargs` with `enable_thinking` and with `thinking`, true and
+false, and also sent no kwarg at all. **No case returned `reasoning_content`**;
+every case returned a normal answer in `content`. There is no thinking toggle to
+measure on this checkpoint, and the two arms of the context sweep are therefore
+the same configuration measured twice.
+
 ### Do not combine autotune-off with MTP on the TP4 build
 
 `--no-enable-flashinfer-autotune` together with MTP crashes at engine startup
@@ -204,15 +224,12 @@ PCIe level. Autotune at its default is part of the measured recipe.
 
 | Cell | Reason |
 |---|---|
-| Lossless check, greedy, speculation on vs off, 20 fixed prompts | needs a speculation-off boot to diff against |
-| Sustained stability, 3 rounds of c=8 with health checks | not yet run |
-| Quality battery per bucket | not yet run on this recipe |
-| Power and temperature under load | not sampled on this boot |
-| NVFP4 checkpoint, PP4 + MTP k=3 | first boot in flight |
-| NVFP4 checkpoint, PP4 + DFlash2 k=7 | the decisive drafter test |
-| Thinking-switch verification | the probe returned no `reasoning_content` in any arm and the two sweep arms are identical |
+| Lossless check, greedy, speculation on vs off, 20 fixed prompts | harness written; blocked by the node fault below |
+| Sustained stability, 3 rounds of c=8 with health checks | harness written; blocked by the node fault below |
+| Quality battery per bucket | harness and datasets staged; blocked by the node fault below |
+| Power and temperature under load | not sampled on the measured boot |
 | Accepted tokens per pass vs context length | no `SpecDecoding metrics` interval line fell inside a sample window during the sweep |
-| 258k-token context point | prompt calibration overshot the 393,216-token limit |
+| 258k-token context point | the request exceeded the 393,216-token server limit after prompt calibration |
 | BF16 parity | no host in this pool can load the BF16 checkpoint; quantization quality is compared only against the vendor's published numbers and the other quantizations measured here |
 | Vision path | the recipe disables multimodal profiling as a node workaround |
 
